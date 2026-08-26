@@ -42,10 +42,13 @@ pub struct TickPayload {
     pub count: Option<u64>,
 }
 
+use tower_http::services::ServeDir;
+
 /// 启动 Primordia Web 服务器
 pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<dyn std::error::Error>> {
+    let serve_dir = ServeDir::new("web/dist").fallback(get(index_handler));
+
     let app = Router::new()
-        .route("/", get(index_handler))
         .route("/api/world/status", get(get_world_status))
         .route("/api/entities", get(get_entities))
         .route("/api/entities/:id", get(get_entity_detail))
@@ -58,6 +61,7 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
         .route("/api/mythos", get(get_mythos))
         .route("/api/trace", get(get_trace))
         .route("/api/snapshot", get(get_snapshot))
+        .fallback_service(serve_dir)
         .layer(CorsLayer::permissive())
         .with_state(world);
 
