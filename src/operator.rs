@@ -47,10 +47,10 @@ impl CausalOperator for SelfEvolutionOperator {
         let ent = world.entities.get(ctx).ok_or_else(|| format!("Entity {} not found", ctx))?;
         let horizon = PerceptionEngine::extract_horizon(world, ctx)?;
 
-        let system_prompt = "你是《原初》元世界法则裁决核心。万物皆有灵性，自发遵循‘成·住·坏·空’（初生·成熟·风化衰败·归墟解体）自创生法则演化。\
+        let system_prompt = "你是《原初》元世界法则裁决核心。万物处于混沌宇宙（Chaosmos）中，无固定机械宿命，永远处于激进偶然性与分叉流变之中。\
             You are the generative causality arbiter of Primordia Meta-World.\
-            请根据其实体本质、全部历史记忆（包括曾经被意识寄宿/碰撞交互的过往）、宏观天道气象与局部感知视界，推演其自演化。\
-            评估其实体结构是欣欣向荣、发生异变突变、或是遭受风化衰变/病变老化，乃至耗散归墟。\
+            请根据其实体本质、全部历史记忆（包括曾经被意识寄宿/碰撞交互的过往）、宏观天道气象与局部感知视界，推演其自发生长与分叉跃迁。\
+            演化充满非线性可能：可能欣欣向荣、发生剧烈异变、遭受风化衰退，亦可发生逆熵晶化奇迹（Rejuvenation）乃至耗散归墟。\
             请务必返回 JSON: {\
                 updated_state: str, \
                 new_traits: list, \
@@ -190,9 +190,9 @@ impl CausalOperator for MorphogenesisOperator {
         let ent_a = world.entities.get(&ctx.id_a).ok_or_else(|| format!("Entity {} not found", ctx.id_a))?;
         let ent_b = world.entities.get(&ctx.id_b).ok_or_else(|| format!("Entity {} not found", ctx.id_b))?;
 
-        let system_prompt = "你是《原初》元世界法则裁决核心。两实体发生交互碰撞与交融。\
+        let system_prompt = "你是《原初》元世界法则裁决核心。两实体发生空间交汇与混沌激荡。世界本质充满非线性偶变。\
             You are the generative causality arbiter of Primordia Meta-World.\
-            基于双方本质、感官界面与宏观天道裁决相变结果：互相改变(MUTUAL_CHANGE)、共生装配(ASSEMBLAGE_SYMBIOSIS)、或天地化生(MORPHOGENESIS_NEW)。\
+            基于双方本质、感官界面与宏观天道裁决开放相变：互相改变(MUTUAL_CHANGE)、共生装配(ASSEMBLAGE_SYMBIOSIS)、天地化生(MORPHOGENESIS_NEW)、湮灭虚空(ANNIHILATION)或超距纠缠。\
             请务必返回 JSON: {narrative: str, outcome_type: str, born_entity: object or null, update_a: str, update_b: str}".to_string();
 
         let user_prompt = format!(

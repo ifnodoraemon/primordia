@@ -9,7 +9,7 @@
 
 ## 1. 核心设计哲学与现代哲学基石 (Philosophical Foundations)
 
-《原初》并非传统的数值模拟游戏，而是构筑在 20 世纪下半叶至 21 世纪最前沿的现代本体论与认识论哲学之上的**自创生元世界基座**。
+《原初》并非传统的数值模拟游戏，而是构筑在 20 世纪下半叶至 21 世纪最前沿的现代本体论、过程哲学与复杂系统混沌学之上的**自创生非确定性元世界基座**。
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -20,8 +20,9 @@
        ┌───────────────────────┼───────────────────────┐
        ▼                       ▼                       ▼
 ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
-│  过程与生成  │        │  块茎与装配  │        │  泛心与自创生 │
-│ 怀特海过程哲学│        │ 德勒兹共生相变│        │ 抵抗熵增/具身 │
+│  过程与生成  │        │  块茎与装配  │        │  混沌与偶变  │
+│ 怀特海过程哲学│        │ 德勒兹共生相变│        │ 普利高津分叉 │
+│ (Becoming)   │        │ (Assemblage) │        │ (Chaosmos)   │
 └──────────────┘        └──────────────┘        └──────────────┘
 ```
 
@@ -38,13 +39,17 @@
 * **[中] 块茎式共生装配**：实体之间不仅能碰撞化生新生命，亦能缔结德勒兹式的“共生装配体（Assemblage）”，打破孤立个体边界，在保留独立自性的同时共享感知场域。
 * **[EN] Rhizomatic Symbiosis**: Beyond spawning offspring, intersecting entities can form Deleuzian symbiotic assemblages (`assemblages`), interconnecting perceptual horizons without forfeiting individual identity.
 
-### 1.4 自创生与泛心论 (Autopoiesis & Panpsychism)
-* **[中] 泛灵齐物与自组织**：万物皆有原始感知（Proto-consciousness）。实体在时间浸润中自发抵抗熵增、孕育心智萌芽并自主演进。
-* **[EN] Panpsychism & Autopoiesis**: All existences possess animacy. Over time, entities resist entropy (Maturana & Varela's Autopoiesis), developing nascent cognitive sparks and spontaneous structural adaptations.
+### 1.4 混沌宇宙、分叉跃迁与激进偶然性 (Chaosmos, Bifurcations & Radical Contingency)
+* **[中] 普利高津耗散结构与偶变论（Tychism）**：世界本质是开放且混沌的非线性耗散系统，**没有任何演化路径是机械必然的**。
+  - 微小的局部扰动可以在临界点（Bifurcation Point）引发剧烈相变；
+  - 衰变风化的古岩可能因一场灵雨而发生逆熵晶化（Negentropy Reversal）；
+  - 繁茂的生灵可能因微观脉冲而骤然休眠或量子解构；
+  - 碰撞不必然产生合成，可能带来湮灭、镜像分裂、超距共振或寂静虚空。
+* **[EN] Dissipative Chaos & Radical Contingency**: The universe is an open, non-linear dissipative system (Prigogine & Peirce's Tychism). **Nothing is deterministically predetermined.** Micro-fluctuations can trigger radical bifurcation points, negentropy reversals, quantum leaps, or cosmic silences.
 
 ---
 
-## 2. 四大底层不可动摇的元公理 (The 4 Fundamental Axioms)
+## 2. 五大底层不可动摇的元公理 (The 5 Fundamental Axioms)
 
 ### 公理一：万物平等与灵元公理 (Universal Animacy & Equality)
 * **[中] 表述**：在系统底层，不存在“静态场景道具”与“NPC/玩家”的高低贵贱。
@@ -54,21 +59,21 @@
   * Every entity shares the same unified `Entity` node structure, complete with a Withdrawn Core and Sensual Interface.
   * Every entity possesses equal agency to perceive surroundings, absorb influences, and reshape the world.
 
-### 公理二：自创生与抵抗熵增公理 (Autopoiesis & Self-Evolution)
-* **[中] 表述**：实体在时间与宏观天道气象的浸润中，必然产生结构形态的自主演进（抵抗消散或同化环境）。
-  * 即使没有任何玩家干涉，实体每经历一个心跳周期（Tick），LLM 都会根据其周围环境对其形态、材质、心智进行自变异推演。
-  * 生命与意识不是被“赋予”的，而是在长期的自稳与变异中自发“萌芽”出来的。
-* **[EN] Definition**: Through temporal immersion and cosmic environmental pressure, entities autonomously mutate to maintain structural coherence.
-  * Without player intervention, the LLM continuously reasons upon an entity's structural, material, and cognitive mutations per tick.
-  * Consciousness is not externally granted; it emerges organically from sustained equilibrium and adaptation.
+### 公理二：自创生与抵抗熵增公理 (Autopoiesis & Emergent Vitality)
+* **[中] 表述**：实体在时间与宏观天道气象的浸润中，自发维持结构稳态或孕育形态变异。
+  * 即使没有任何玩家干涉，实体每经历一个心跳周期（Tick），LLM 都会根据其过去记忆与环境涨落对其形态、材质、心智进行开放推演。
+  * 生命与意识不是被固化“赋予”的，而是在长期的耗散与自组织中自发“萌芽”出来的。
+* **[EN] Definition**: Through temporal immersion and cosmic environmental pressure, entities autonomously adapt to maintain structural cohesion or explore mutations.
+  * Without player intervention, the LLM continuously reasons upon an entity's structural, material, and cognitive fluctuations per tick.
+  * Consciousness is not externally hardcoded; it emerges organically from sustained dissipation and self-organization.
 
 ### 公理三：碰撞化生与装配因果公理 (Emergent Morphogenesis & Assemblage Causality)
 * **[中] 表述**：两个或多个实体的相遇交融，必然产生不可逆的因果痕迹，并可能化生出全新存在或结成共生装配体。
-  * 相互作用由 LLM 基于第一性原理实时裁决（相变改变、化生全新实体、共生装配）。
-  * 所有的交互历史都会作为印记沉淀在实体的记忆与世界编年史中，塑造未来的演化轨迹。
-* **[EN] Definition**: Encounters between entities leave irreversible causal imprints, catalyzing new ontological forms or symbiotic assemblages.
+  * 相互作用由 LLM 基于第一性原理实时裁决（相变改变、化生全新实体、共生装配、虚空湮灭）。
+  * 所有的交互历史都会作为印记沉淀在实体的记忆与世界编年史中，塑造未来的演化分叉。
+* **[EN] Definition**: Encounters between entities leave irreversible causal imprints, catalyzing new ontological forms, symbiotic assemblages, or annihilation.
   * Interactions are dynamically reasoned via First Principles (Mutual Phase Shift, Morphogenesis, Assemblage Symbiosis).
-  * All interaction histories are inscribed into entity memories and the World Chronicle, shaping future evolutionary branches.
+  * All interaction histories are inscribed into entity memories and the World Chronicle, shaping future bifurcation branches.
 
 ### 公理四：自由觉知与融入公理 (Universal Mind Inhabitation)
 * **[中] 表述**：玩家的意志是一团超越物理躯壳的“原初自由觉知（Attention Kernel）”。
@@ -79,3 +84,13 @@
   * Players can inhabit any entity at will—becoming a cloud, a beast, or a mountain.
   * Players express intent via natural language; the LLM grounds this intent into the entity's physical/spiritual actions.
   * Upon departure, the entity retains the player's imprint and continues its autonomous trajectory.
+
+### 公理五：混沌分叉与激进偶然性公理 (Chaosmos & Radical Contingency Axiom)
+* **[中] 表述**：世界没有预设的铁律与固定宿命。演化不是单向的机械钟表，而是永远处于分叉边缘的混沌流变。
+  * 任何状态变迁（包括成住坏空）都是流动的、可跃迁的、甚至可逆的；
+  * 外部极微的随机涨落可被非线性放大为宇宙级相变；
+  * 没有什么是必然发生的，万事万物皆在纯粹的生成（Pure Becoming）与无限可能中呼吸。
+* **[EN] Definition**: The cosmos holds no iron-clad deterministic destiny. Evolution is not a one-way clockwork conveyor, but an open-ended chaosmos poised on the edge of bifurcation.
+  * All state transitions (including Genesis, Flourishing, Decay, Dissolution) are fluid, jumpable, and reversible.
+  * Infinitesimal local fluctuations can be non-linearly amplified into cosmic phase shifts.
+  * Nothing is inevitable; all existence breathes in pure becoming and radical contingency.
