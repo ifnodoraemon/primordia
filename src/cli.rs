@@ -170,6 +170,43 @@ impl PrimordiaRepl {
                         println!("  • [{}] <{}> Targets: {:?} ({}ms) ──► {}", span.span_id, span.operator, span.target_entities, span.duration_ms, span.mutations_summary);
                     }
                 }
+                "commune" => {
+                    if parts.len() < 3 {
+                        println!("⚠️ 用法: commune <entity_id 或 名称> <神念发问内容>");
+                        continue;
+                    }
+                    let target_key = parts[1];
+                    let query = parts[2..].join(" ");
+                    let target_id = world.entities.iter().find(|(id, ent)| id.as_str() == target_key || ent.name.contains(target_key)).map(|(id, _)| id.clone());
+                    match target_id {
+                        Some(id) => {
+                            println!("🗣️ 正在与实体展开神念倾听问答……");
+                            let _ = world.commune_with_entity(&id, &query).await;
+                        }
+                        None => println!("❌ 未找到实体: {}", target_key),
+                    }
+                }
+                "dialogue" => {
+                    if parts.len() < 3 {
+                        println!("⚠️ 用法: dialogue <entity_a> <entity_b>");
+                        continue;
+                    }
+                    let key_a = parts[1];
+                    let key_b = parts[2];
+                    let id_a = world.entities.iter().find(|(id, ent)| id.as_str() == key_a || ent.name.contains(key_a)).map(|(id, _)| id.clone());
+                    let id_b = world.entities.iter().find(|(id, ent)| id.as_str() == key_b || ent.name.contains(key_b)).map(|(id, _)| id.clone());
+                    match (id_a, id_b) {
+                        (Some(a), Some(b)) => {
+                            println!("💬 正在推演客体际神念交织问答与共生顿悟……");
+                            let _ = world.intersubjective_dialogue(&a, &b).await;
+                        }
+                        _ => println!("❌ 无法解析指定的两实体标识"),
+                    }
+                }
+                "reset" => {
+                    println!("🔄 正在重置宇宙回归鸿蒙创世态……");
+                    world.reset_world();
+                }
                 "save" => {
                     let path = if parts.len() > 1 { parts[1] } else { "world_snapshot.json" };
                     match world.save_snapshot(path) {
@@ -185,17 +222,13 @@ impl PrimordiaRepl {
                     let path = parts[1];
                     match std::fs::read_to_string(path) {
                         Ok(json_str) => {
-                            match serde_json::from_str::<crate::world::WorldSnapshot>(&json_str) {
-                                Ok(snapshot) => {
-                                    world.name = snapshot.name;
-                                    world.tick_count = snapshot.tick_count;
-                                    world.cosmic_atmosphere = snapshot.cosmic_atmosphere;
-                                    world.entities = snapshot.entities;
-                                    world.chronicle = snapshot.chronicle;
-                                    world.tracer = snapshot.tracer;
+                            let llm = world.llm.clone();
+                            match PrimordiaWorld::import_snapshot_json(&json_str, llm) {
+                                Ok(restored) => {
+                                    *world = restored;
                                     println!("💾 成功从快照恢复世界状态: {}", path);
                                 }
-                                Err(e) => println!("❌ 快照数据反序列化失败: {}", e),
+                                Err(e) => println!("❌ 快照数据加载失败: {}", e),
                             }
                         }
                         Err(e) => println!("❌ 读取快照文件失败: {}", e),
@@ -216,12 +249,18 @@ impl PrimordiaRepl {
         println!("  • list / ls              - 列出宇宙中所有实体的感官表象与共生装配关系");
         println!("  • inspect <id/name>      - 深入剖析实体的退隐内核、本质、记忆流与完整状态");
         println!("  • inhabit <id> <intent>  - 自由意识寄宿入实体并注入自然语言意图");
+        println!("  • commune <id> <query>   - 以神念直接与灵元实体对话问答");
+        println!("  • dialogue <id_a> <id_b> - 触发两实体客体际神念交织问答与共生顿悟");
         println!("  • act <id/name>          - 触发实体基于局部感知视界萌发自主心智意志并行动");
         println!("  • collide <id_a> <id_b>  - 触发两实体碰撞相变（互相改变/化生新生命/共生装配）");
         println!("  • tick [n]               - 推进 n 个世界演化纪元周期 (默认 1)");
         println!("  • shift                  - 触发宏观天道气象与宇宙常数演化相变");
+        println!("  • resonate <domain>      - 触发拓扑场域多实体集体共鸣相变");
+        println!("  • epic / mythos          - 提炼当前纪元中英双语神话史诗篇章");
         println!("  • trace                  - 查看因果追踪摘要与最近 Span 明细");
+        println!("  • reset                  - 重置宇宙回归虚空鸿蒙初辟之态");
         println!("  • save [path]            - 保存宇宙全量状态快照至 JSON 文件");
+        println!("  • load <path>            - 从 JSON 文件热载入平行宇宙快照");
         println!("  • exit / quit            - 退出交互式终端");
     }
 }

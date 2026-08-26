@@ -2,8 +2,8 @@
 
 > **中英双语 Prompt 规范 / Bilingual Prompt & Loop Specification**
 
-本文档定义了《原初》（Primordia: Meta）世界中，驱动实体自演化、碰撞化生、玩家寄宿、自治萌芽、神念倾听、场域共鸣与纪元神话提炼的核心 Prompt 模板及协议。  
-This document defines the core Prompt templates and interaction protocols driving autonomous self-evolution, collision morphogenesis, mind inhabitation, autonomous agency, panpsychic communion, domain collective resonance, and epoch mythos distillation.
+本文档定义了《原初》（Primordia: Meta）世界中，驱动实体自演化、碰撞化生、玩家寄宿、自治萌芽、神念倾听、客体际对话、场域共鸣与纪元神话提炼的核心 Prompt 模板及协议。  
+This document defines the core Prompt templates and interaction protocols driving autonomous self-evolution, collision morphogenesis, mind inhabitation, autonomous agency, panpsychic communion, intersubjective dialogue, domain collective resonance, and epoch mythos distillation.
 
 ---
 
@@ -40,30 +40,29 @@ You must strictly return valid JSON format.
 
 ```text
 【任务 / Task】：
-推演实体在时间流逝与周围环境影响下的自生长、自变异、生命周期（成住坏空）流转或心智萌芽。
-Reason through the entity's autonomous growth, mutation, lifecycle flow (Genesis, Flourishing, Decay, Dissolution), or cognitive awakening over time.
+推演实体在时间流逝与周围环境影响下的自生长、自变异、生命流转或心智萌芽。
+Reason through the entity's autonomous growth, mutation, or cognitive awakening over time.
 
 【目标实体状态 / Target Entity】：
 - 本质 / Essence: {essence}
 - 当前特征 / Traits: {traits}
 - 当前状态 / State: {current_state}
-- 当前生命周期与凝聚度 / Lifecycle & Cohesion: {lifecycle}, {cohesion}
 - 记忆流 / Memories: {memory_stream}
 
 【周围环境与局部视界 / Surroundings & Sensory Horizon】：
 {surroundings}
 
 【推演要求 / Requirements】：
-在无玩家干涉下，推演：1. 形态/材质的微观变异；2. 生命周期流转；3. 记忆沉淀；4. 是否分裂/孕育出新实体。
-Without player intervention: 1. Morphological/material mutation; 2. Lifecycle flow; 3. Inscribed memory; 4. Whether an offspring sprouts.
+在无玩家干涉下，推演：1. 形态/材质的微观变异；2. 开放存在态变异；3. 记忆沉淀；4. 是否分裂/孕育出新实体；5. 是否消散解体归墟。
+Without player intervention: 1. Morphological mutation; 2. Fluid state evolution; 3. Inscribed memory; 4. Whether an offspring sprouts; 5. Whether it dissolves into the void.
 
 【输出 JSON / Output JSON】：
 {
   "updated_state": "更新后的状态描述 / Updated state description",
   "new_traits": ["新特性标签 / New trait tags"],
   "new_memory": "刻入的记忆 / Inscribed memory snippet",
-  "lifecycle_transition": "Genesis / Flourishing / Decay / Dissolution / Unchanged",
-  "cohesion_delta": -0.05,
+  "dynamic_properties": { "quality": "value" },
+  "is_dissolved": false,
   "sprouted_child": null or {
     "name": "...",
     "essence": "...",
@@ -126,14 +125,6 @@ The player inhabits this entity as pure conscious will and issues natural langua
 【玩家意图 / Player Intent】："{player_intent}"
 【周边环境 / Surroundings】：{surroundings}
 
-【推演要求 / Requirements】：
-1. 评估该实体的物理/灵性本质如何响应此意图；
-2. 该意图对实体自身造成的形变或负荷；
-3. 在周围环境中掀起的波纹与连锁反应。
-1. Reason how the host entity physically/spiritually grounds this intent;
-2. Compute morphological strain and displacement;
-3. Calculate environmental ripples in the immediate vicinity.
-
 【输出 JSON / Output JSON】：
 {
   "action_result": "行动执行结果与因果反馈 / Execution outcome and feedback",
@@ -168,7 +159,30 @@ The player psychically communes with this entity; the entity responds in first-p
 
 ---
 
-### 模板五：拓扑场域集体共鸣相变 (Domain Resonance Prompt)
+### 模板五：客体际自发神念交织问答 (Intersubjective Dialogue Prompt)
+
+```text
+【任务 / Task】：
+推演两个实体在场域中自发神念交汇的第一人称心灵对话、状态演进与共同顿悟。
+Adjudicate spontaneous telepathic dialogue, mutual transformation, and shared epiphany between two entities.
+
+【发话实体 / Speaker Entity】：{speaker}
+【听话实体 / Listener Entity】：{listener}
+
+【输出 JSON / Output JSON】：
+{
+  "speaker_utterance": "发话实体传念内容 / Speaker entity utterance",
+  "listener_reply": "听话实体心灵回应 / Listener entity reply",
+  "speaker_new_state": "发话实体新状态 / Speaker updated state",
+  "listener_new_state": "听话实体新状态 / Listener updated state",
+  "form_assemblage": true,
+  "shared_epiphany": "两实体共同获得的顿悟 / Shared intersubjective epiphany"
+}
+```
+
+---
+
+### 模板六：拓扑场域集体共鸣相变 (Domain Resonance Prompt)
 
 ```text
 【任务 / Task】：
@@ -196,7 +210,7 @@ Adjudicate field-level collective resonance and emergent surge across multiple e
 
 ---
 
-### 模板六：纪元神话史诗提炼 (Epoch Mythos Distillation Prompt)
+### 模板七：纪元神话史诗提炼 (Epoch Mythos Distillation Prompt)
 
 ```text
 【任务 / Task】：
