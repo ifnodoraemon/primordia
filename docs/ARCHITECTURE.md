@@ -104,3 +104,27 @@ This document specifies the architectural principles, orthogonal layering standa
 │ 第 3 层: 感官呈现 (Presentation / Chronicle)  │ ──► [双语史诗日志 / 多模态]
 └───────────────────────────────────────────────┘
 ```
+
+---
+
+## 5. 链路追踪与仿真驾驭台体系 (Trace & Harness Subsystem)
+
+为了保证世界推演的**全周期可观测性（Observability）、确定性复现（Reproducibility）与自动化基准测试（Benchmark Harness）**，系统从一开始即内嵌 Harness 驱动架构与因果追踪层：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│             仿真驾驭台 (Simulation Harness Driver)            │
+│  [Scenario: Genesis Spec + Steps + Invariant Assertions]    │
+└──────────────────────────────┬──────────────────────────────┘
+                               │ (驱动与步进 / Drive & Step)
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│          因果链路追踪器 (Causality & Lineage Tracer)          │
+│  • CausalSpan: span_id, operator, prompts, response, ms     │
+│  • 流式导出: export_json() & export_jsonl()                 │
+│  • 性能与延迟分析: total_llm_calls, latency_ms, lineage     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+* **全链路因果 Span 追踪 (`CausalSpan`)**：记录每一次 LLM 调用的提示词输入、大模型响应、实体状态突变摘要与耗时，支持流式 JSONL 导出分析。
+* **Harness 剧本驱动 (`Scenario`)**：支持声明式定义创世实体、演化步骤与不可变公理断言（`AssertEntityCount`, `AssertChronicleContains`, `AssertEntityHasTrait`），确保世界自演化始终自洽可控。

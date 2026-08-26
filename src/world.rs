@@ -1,10 +1,12 @@
 use crate::entity::Entity;
 use crate::llm::{LlmClient, OpenAiLlmClient};
+use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
+use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChronicleEvent {
@@ -22,6 +24,7 @@ pub struct WorldSnapshot {
     pub cosmic_atmosphere: String,
     pub entities: HashMap<String, Entity>,
     pub chronicle: Vec<ChronicleEvent>,
+    pub tracer: CausalityTracer,
 }
 
 pub struct PrimordiaWorld {
@@ -31,6 +34,8 @@ pub struct PrimordiaWorld {
     pub cosmic_atmosphere: String,
     pub entities: HashMap<String, Entity>,
     pub chronicle: Vec<ChronicleEvent>,
+    /// 全生命周期因果链路追踪器 (Causality & Lineage Tracer)
+    pub tracer: CausalityTracer,
     llm: Arc<dyn LlmClient>,
 }
 
@@ -42,6 +47,7 @@ impl PrimordiaWorld {
             cosmic_atmosphere: "原初鸿蒙初辟，虚空中星尘与暗能量自发涌动 / Primordial Void Genesis, swirling stardust and dark currents".to_string(),
             entities: HashMap::new(),
             chronicle: Vec::new(),
+            tracer: CausalityTracer::new(),
             llm: Arc::new(OpenAiLlmClient::new()),
         }
     }
@@ -53,6 +59,7 @@ impl PrimordiaWorld {
             cosmic_atmosphere: "原初鸿蒙初辟，虚空中星尘与暗能量自发涌动 / Primordial Void Genesis, swirling stardust and dark currents".to_string(),
             entities: HashMap::new(),
             chronicle: Vec::new(),
+            tracer: CausalityTracer::new(),
             llm,
         }
     }
@@ -132,6 +139,7 @@ impl PrimordiaWorld {
 
     /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution)
     pub async fn evolve_cosmic_law(&mut self) -> Result<String, String> {
+        let start_time = Instant::now();
         let system_prompt = "你是《原初》宏观天道推演核心。请根据当前世界纪元、实体总数与历史编年，推演世界宏观法则/环境气候的迁跃相变。\
             You are the Cosmic Arbiter of Primordia. Reason through the macro-law / atmospheric phase shift of the universe.\
             请务必返回 JSON: {new_atmosphere: str, cosmic_ripple: str}";
@@ -145,13 +153,25 @@ impl PrimordiaWorld {
         );
 
         let result = self.llm.generate_json(system_prompt, &context_summary).await?;
+        let duration_ms = start_time.elapsed().as_millis() as u64;
+
         let new_atmo = result["new_atmosphere"].as_str().unwrap_or(&self.cosmic_atmosphere).to_string();
         let ripple = result["cosmic_ripple"].as_str().unwrap_or("天道气象微微流变 / Cosmic atmosphere gently ripples").to_string();
 
         self.cosmic_atmosphere = new_atmo.clone();
-        self.record_event(
+        let event_msg = format!("宏观天道气象发生纪元相变：{} ──► 波纹: {} / Cosmic law phase shift: {} ──► Ripple: {}", new_atmo, ripple, new_atmo, ripple);
+        self.record_event("COSMIC_LAW_SHIFT", &event_msg);
+
+        // 记录 Trace
+        self.tracer.record_span(
+            self.tick_count,
             "COSMIC_LAW_SHIFT",
-            &format!("宏观天道气象发生纪元相变：{} ──► 波纹: {} / Cosmic law phase shift: {} ──► Ripple: {}", new_atmo, ripple, new_atmo, ripple),
+            vec!["@COSMOS".to_string()],
+            system_prompt,
+            &context_summary,
+            result.clone(),
+            &event_msg,
+            duration_ms,
         );
 
         Ok(new_atmo)
@@ -159,6 +179,7 @@ impl PrimordiaWorld {
 
     /// 单实体自生长演化 (Autonomous Self-Evolution)
     pub async fn evolve_entity(&mut self, ent_id: &str) -> Result<Value, String> {
+        let start_time = Instant::now();
         let ent = match self.entities.get(ent_id) {
             Some(e) => e.clone(),
             None => return Err(format!("Entity {} not found", ent_id)),
@@ -176,6 +197,7 @@ impl PrimordiaWorld {
         );
 
         let result = self.llm.generate_json(system_prompt, &user_prompt).await?;
+        let duration_ms = start_time.elapsed().as_millis() as u64;
 
         let mut event_msg = None;
         if let Some(target) = self.entities.get_mut(ent_id) {
@@ -200,9 +222,22 @@ impl PrimordiaWorld {
             ));
         }
 
-        if let Some(msg) = event_msg {
-            self.record_event("SELF_EVOLVE", &msg);
+        let summary = event_msg.clone().unwrap_or_else(|| "自演化完成 / Evolution completed".to_string());
+        if let Some(ref msg) = event_msg {
+            self.record_event("SELF_EVOLVE", msg);
         }
+
+        // 记录 Trace
+        self.tracer.record_span(
+            self.tick_count,
+            "SELF_EVOLVE",
+            vec![ent_id.to_string()],
+            system_prompt,
+            &user_prompt,
+            result.clone(),
+            &summary,
+            duration_ms,
+        );
 
         // 检查是否孕育出新实体 / Check if new child sprouted
         if result["sprouted_child"].is_object() {
@@ -222,6 +257,7 @@ impl PrimordiaWorld {
 
     /// 两实体碰撞、相变与共生 (Collision, Morphogenesis & Symbiosis)
     pub async fn collide(&mut self, id_a: &str, id_b: &str) -> Result<Value, String> {
+        let start_time = Instant::now();
         let ent_a = match self.entities.get(id_a) {
             Some(e) => e.clone(),
             None => return Err(format!("Entity {} not found", id_a)),
@@ -246,10 +282,13 @@ impl PrimordiaWorld {
         );
 
         let result = self.llm.generate_json(system_prompt, &user_prompt).await?;
+        let duration_ms = start_time.elapsed().as_millis() as u64;
+
         let narrative = result["narrative"].as_str().unwrap_or("两实体发生了碰撞交互。 / Entities collided.").to_string();
         let outcome_type = result["outcome_type"].as_str().unwrap_or("MUTUAL_CHANGE");
 
-        self.record_event("COLLISION_MORPHOGENESIS", &format!("[{}] {}", outcome_type, narrative));
+        let event_msg = format!("[{}] {}", outcome_type, narrative);
+        self.record_event("COLLISION_MORPHOGENESIS", &event_msg);
 
         if outcome_type == "ASSEMBLAGE_SYMBIOSIS" {
             let _ = self.form_assemblage(id_a, id_b, &narrative);
@@ -279,11 +318,24 @@ impl PrimordiaWorld {
             self.add_entity(name, essence, traits_arr, state);
         }
 
+        // 记录 Trace
+        self.tracer.record_span(
+            self.tick_count,
+            "COLLISION_MORPHOGENESIS",
+            vec![id_a.to_string(), id_b.to_string()],
+            system_prompt,
+            &user_prompt,
+            result.clone(),
+            &event_msg,
+            duration_ms,
+        );
+
         Ok(result)
     }
 
     /// 玩家意识寄宿与意志注入 (Mind Inhabitation & Agency)
     pub async fn inhabit_and_act(&mut self, ent_id: &str, player_intent: &str) -> Result<Value, String> {
+        let start_time = Instant::now();
         let ent = match self.entities.get(ent_id) {
             Some(e) => e.clone(),
             None => return Err(format!("Entity {} not found", ent_id)),
@@ -303,6 +355,7 @@ impl PrimordiaWorld {
         );
 
         let result = self.llm.generate_json(system_prompt, &user_prompt).await?;
+        let duration_ms = start_time.elapsed().as_millis() as u64;
 
         let mut event_msg = None;
         if let Some(target) = self.entities.get_mut(ent_id) {
@@ -317,9 +370,22 @@ impl PrimordiaWorld {
             ));
         }
 
-        if let Some(msg) = event_msg {
-            self.record_event("MIND_INHABITATION", &msg);
+        let summary = event_msg.clone().unwrap_or_else(|| "寄宿行动完成 / Inhabitation complete".to_string());
+        if let Some(ref msg) = event_msg {
+            self.record_event("MIND_INHABITATION", msg);
         }
+
+        // 记录 Trace
+        self.tracer.record_span(
+            self.tick_count,
+            "MIND_INHABITATION",
+            vec![ent_id.to_string()],
+            system_prompt,
+            &user_prompt,
+            result.clone(),
+            &summary,
+            duration_ms,
+        );
 
         Ok(result)
     }
@@ -343,6 +409,7 @@ impl PrimordiaWorld {
             cosmic_atmosphere: self.cosmic_atmosphere.clone(),
             entities: self.entities.clone(),
             chronicle: self.chronicle.clone(),
+            tracer: self.tracer.clone(),
         };
         serde_json::to_string_pretty(&snapshot).map_err(|e| e.to_string())
     }
@@ -363,6 +430,7 @@ impl PrimordiaWorld {
             cosmic_atmosphere: snapshot.cosmic_atmosphere,
             entities: snapshot.entities,
             chronicle: snapshot.chronicle,
+            tracer: snapshot.tracer,
             llm,
         })
     }
