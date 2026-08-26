@@ -1,3 +1,4 @@
+use crate::perception::PerceptionEngine;
 use crate::world::PrimordiaWorld;
 use serde_json::Value;
 
@@ -44,15 +45,19 @@ impl CausalOperator for SelfEvolutionOperator {
 
     fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
         let ent = world.entities.get(ctx).ok_or_else(|| format!("Entity {} not found", ctx))?;
+        let horizon = PerceptionEngine::extract_horizon(world, ctx)?;
+
         let system_prompt = "你是《原初》元世界法则裁决核心。万物皆有灵性，自发演变。\
             You are the generative causality arbiter of Primordia Meta-World.\
-            请根据实体内在状态与当前宏观天道气象，推演其自生长、自变异或心智萌芽。\
+            请根据实体内在状态、宏观天道气象及局部感知视界，推演其自生长、自变异或心智萌芽。\
             请务必返回 JSON: {updated_state: str, new_traits: list, new_memory: str, sprouted_child: object or null}".to_string();
 
         let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
         let user_prompt = format!(
-            "当前宏观天道气象 / Cosmic Atmosphere: {}\n目标实体 / Target Entity: {}",
-            world.cosmic_atmosphere, ent_json
+            "当前宏观天道气象 / Cosmic Atmosphere: {}\n{}\n目标实体 / Target Entity: {}",
+            world.cosmic_atmosphere,
+            horizon.to_prompt_context(),
+            ent_json
         );
 
         Ok((system_prompt, user_prompt))
@@ -216,16 +221,18 @@ impl CausalOperator for MindInhabitationOperator {
 
     fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
         let ent = world.entities.get(&ctx.ent_id).ok_or_else(|| format!("Entity {} not found", ctx.ent_id))?;
+        let horizon = PerceptionEngine::extract_horizon(world, &ctx.ent_id)?;
 
         let system_prompt = "你是《原初》元世界法则裁决核心。玩家作为原初自由意志，寄宿于该实体并发出行动意图。\
             You are the generative causality arbiter of Primordia Meta-World.\
-            请评估该实体的物理/灵性本质如何响应此意图，推导其自身状态变化与对周围环境的波纹。\
+            请评估该实体的物理/灵性本质结合周围环境如何响应此意图，推导其自身状态变化与对周围环境的波纹。\
             请务必返回 JSON: {action_result: str, subject_new_state: str, environmental_ripple: str}".to_string();
 
         let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
         let user_prompt = format!(
-            "当前天道气象 / Cosmic Atmosphere: {}\n寄宿实体 / Inhabited Entity: {}\n玩家自由意志意图 / Player Intent: '{}'",
+            "当前天道气象 / Cosmic Atmosphere: {}\n{}\n寄宿实体 / Inhabited Entity: {}\n玩家自由意志意图 / Player Intent: '{}'",
             world.cosmic_atmosphere,
+            horizon.to_prompt_context(),
             ent_json,
             ctx.player_intent
         );
@@ -261,7 +268,71 @@ impl CausalOperator for MindInhabitationOperator {
 }
 
 // =========================================================================
-// 4. 宏观天道法则相变算子 (Cosmic Law Shift Operator)
+// 4. 萌芽心智自治行为算子 (Autonomous Agency Operator - Layer 2)
+// =========================================================================
+
+pub struct AutonomousAgencyOperator;
+
+impl CausalOperator for AutonomousAgencyOperator {
+    type Context = String; // ent_id
+    type Output = Value;
+
+    fn operator_type(&self) -> &'static str {
+        "AUTONOMOUS_AGENCY"
+    }
+
+    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
+        vec![ctx.clone()]
+    }
+
+    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
+        let ent = world.entities.get(ctx).ok_or_else(|| format!("Entity {} not found", ctx))?;
+        let horizon = PerceptionEngine::extract_horizon(world, ctx)?;
+
+        let system_prompt = "你是《原初》灵性心智裁决核心。该实体在天地浸润中萌发自主心智意志。\
+            You are the Animus Cognition Arbiter of Primordia.\
+            请基于其本质特征、历史记忆与当前局部感知视界，推演其自发萌生的意图欲望、付诸的本体行动、自身状态变化与对周围的波纹。\
+            请务必返回 JSON: {autonomous_intent: str, action_execution: str, updated_state: str, environmental_ripple: str}".to_string();
+
+        let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
+        let user_prompt = format!(
+            "当前宏观天道气象 / Cosmic Atmosphere: {}\n{}\n自主实体 / Autonomous Entity: {}",
+            world.cosmic_atmosphere,
+            horizon.to_prompt_context(),
+            ent_json
+        );
+
+        Ok((system_prompt, user_prompt))
+    }
+
+    fn apply_mutation(
+        &self,
+        world: &mut PrimordiaWorld,
+        ctx: &Self::Context,
+        result: &Value,
+    ) -> Result<(Self::Output, String), String> {
+        let mut event_detail = String::new();
+
+        if let Some(target) = world.entities.get_mut(ctx) {
+            if let Some(updated_state) = result["updated_state"].as_str() {
+                target.current_state = updated_state.to_string();
+            }
+            let intent = result["autonomous_intent"].as_str().unwrap_or("探求自身存在的边界 / Seeking existential boundaries");
+            let action = result["action_execution"].as_str().unwrap_or("静默散发微光 / Silently radiating faint glow");
+            target.record_memory(format!("萌发自主心智意志并行动: {} ──► {}", intent, action));
+
+            event_detail = format!(
+                "【{}】萌发自主意志: {} ──► 行动: {} / [{}] autonomous agency: {} ──► {}",
+                target.name, intent, action, target.name, intent, action
+            );
+        }
+
+        Ok((result.clone(), event_detail))
+    }
+}
+
+// =========================================================================
+// 5. 宏观天道法则相变算子 (Cosmic Law Shift Operator)
 // =========================================================================
 
 pub struct CosmicLawOperator;
@@ -315,7 +386,7 @@ impl CausalOperator for CosmicLawOperator {
 }
 
 // =========================================================================
-// 5. 因果执行器流水线 (Causal Pipeline Executor)
+// 6. 因果执行器流水线 (Causal Pipeline Executor)
 // =========================================================================
 
 pub struct CausalExecutor;

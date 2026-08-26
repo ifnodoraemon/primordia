@@ -1,8 +1,8 @@
 use crate::entity::Entity;
 use crate::llm::{create_llm_client_from_env, LlmClient};
 use crate::operator::{
-    CausalExecutor, CosmicLawOperator, MindInhabitationContext, MindInhabitationOperator,
-    MorphogenesisContext, MorphogenesisOperator, SelfEvolutionOperator,
+    AutonomousAgencyOperator, CausalExecutor, CosmicLawOperator, MindInhabitationContext,
+    MindInhabitationOperator, MorphogenesisContext, MorphogenesisOperator, SelfEvolutionOperator,
 };
 use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
@@ -174,6 +174,11 @@ impl PrimordiaWorld {
             },
         )
         .await
+    }
+
+    /// 实体自发萌发心智意志与行动 (Autonomous Agency - Strategy Delegation)
+    pub async fn act_autonomously(&mut self, ent_id: &str) -> Result<Value, String> {
+        CausalExecutor::execute(self, &AutonomousAgencyOperator, &ent_id.to_string()).await
     }
 
     /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution - Strategy Delegation)

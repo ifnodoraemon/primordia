@@ -29,6 +29,10 @@ pub enum HarnessStep {
         entity_name_or_id: String,
         intent: String,
     },
+    /// 实体自发萌发心智意志并行动
+    ActAutonomously {
+        entity_name_or_id: String,
+    },
     /// 两实体相撞/化生
     Collide {
         entity_a: String,
@@ -57,6 +61,12 @@ impl HarnessStep {
                 let target_id = find_entity_id(world, entity_name_or_id)
                     .ok_or_else(|| format!("Entity '{}' not found for InhabitAndAct", entity_name_or_id))?;
                 world.inhabit_and_act(&target_id, intent).await?;
+                Ok(StepOutcome::ActionSuccess)
+            }
+            HarnessStep::ActAutonomously { entity_name_or_id } => {
+                let target_id = find_entity_id(world, entity_name_or_id)
+                    .ok_or_else(|| format!("Entity '{}' not found for ActAutonomously", entity_name_or_id))?;
+                world.act_autonomously(&target_id).await?;
                 Ok(StepOutcome::ActionSuccess)
             }
             HarnessStep::Collide { entity_a, entity_b } => {

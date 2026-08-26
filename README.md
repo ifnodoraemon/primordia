@@ -72,10 +72,17 @@ Traditional game engines rely on handcrafted rule trees, fixed skill graphs, scr
 
 ## 🚀 极速运行与验证 (Quick Start)
 
-### 运行 Rust 核心引擎 Demo / Run Rust Core Demo:
+### 运行基准仿真测试 / Run Benchmark Simulation:
 ```bash
 cargo run
 ```
+
+### 启动交互式原初觉知终端 / Launch Interactive REPL:
+```bash
+cargo run -- --interactive
+# 或 / or: cargo run -- -i
+```
+在终端内可实时寄宿任意实体、注入自由意志、激发碰撞相变、驱动自主心智、推进纪元并查看因果追踪！
 
 ### 运行完整测试套件 / Run Test Suite:
 ```bash

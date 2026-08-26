@@ -1,6 +1,8 @@
 use primordia::{
-    create_llm_client_from_env, GenesisSpec, HarnessStep, Scenario, SimulationHarness,
+    create_llm_client_from_env, GenesisSpec, HarnessStep, PrimordiaRepl, Scenario,
+    SimulationHarness,
 };
+use std::env;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,10 +14,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = create_llm_client_from_env();
     let mut harness = SimulationHarness::new("原初宇宙 0 号 / Universe-Zero", llm);
 
+    let is_interactive = env::args().any(|arg| arg == "--interactive" || arg == "-i");
+
+    if is_interactive {
+        // 初始化预设原初实体以供交互
+        harness.world.add_entity_with_domain(
+            "青峭古石 / Resonant Thunder-Stone",
+            "伫立在悬崖千万年的青黑岩块，饱吸星光与晨露 / Ancient cliff boulder absorbing astral dew",
+            vec!["致密 / Dense", "微凉 / Cool", "沉寂 / Silent"],
+            "静静卧在云雾缭绕的绝壁边缘 / Resting quietly along the mist-shrouded precipice",
+            "悬天绝壁 / Celestial Cliff Precipice",
+        );
+        harness.world.add_entity_with_domain(
+            "地脉游火 / Subterranean Flame",
+            "从地底裂缝中窜出的一缕跳跃赤炎 / Dancing crimson flame leaping from deep rifts",
+            vec!["高热 / Radiant Heat", "流动 / Fluid", "极度活跃 / Hyperactive"],
+            "在虚空中飘忽不定地舞动，吞吐着火星 / Flickering in the void, releasing glowing embers",
+            "地底裂隙 / Abyssal Rift Domain",
+        );
+
+        PrimordiaRepl::run(&mut harness.world).await?;
+        return Ok(());
+    }
+
     // 定义基准仿真剧本 (Benchmark Scenario)
     let benchmark_scenario = Scenario {
         name: "原初相变与天道相变基准剧本 / Primordia Genesis Benchmark".to_string(),
-        description: "驱动创世、意识寄宿、碰撞共生、宏观天道跃迁及纪元演化 / Drive genesis, inhabitation, symbiosis, cosmic shift and autonomous evolution".to_string(),
+        description: "驱动创世、意识寄宿、碰撞共生、自主心智、宏观天道跃迁及纪元演化 / Drive genesis, inhabitation, symbiosis, autonomous agency, cosmic shift and autonomous evolution".to_string(),
         genesis_entities: vec![
             GenesisSpec {
                 name: "青峭古石 / Resonant Thunder-Stone".to_string(),
@@ -41,11 +66,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 entity_a: "青峭古石".to_string(),
                 entity_b: "地脉游火".to_string(),
             },
+            HarnessStep::ActAutonomously {
+                entity_name_or_id: "地脉游火".to_string(),
+            },
             HarnessStep::ShiftCosmicLaw,
             HarnessStep::TickEpoch { count: 1 },
             HarnessStep::AssertEntityCount { expected: 2 },
             HarnessStep::AssertChronicleContains {
                 event_type: "MIND_INHABITATION".to_string(),
+            },
+            HarnessStep::AssertChronicleContains {
+                event_type: "AUTONOMOUS_AGENCY".to_string(),
             },
             HarnessStep::AssertChronicleContains {
                 event_type: "COSMIC_LAW_SHIFT".to_string(),

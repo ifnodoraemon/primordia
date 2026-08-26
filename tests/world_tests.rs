@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use primordia::{Entity, LlmClient, PrimordiaWorld};
+use primordia::{Entity, LlmClient, PerceptionEngine, PrimordiaWorld};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -59,6 +59,38 @@ async fn test_world_genesis_and_inhabitation() {
     let target = world.entities.get(&id).unwrap();
     assert_eq!(target.current_state, "星光激荡");
     assert_eq!(target.memory_stream.len(), 2);
+}
+
+#[tokio::test]
+async fn test_perception_engine_and_autonomous_agency() {
+    let mock_resp = serde_json::json!({
+        "autonomous_intent": "向共生伙伴传递地热能量",
+        "action_execution": "内核激荡出赤红脉冲",
+        "updated_state": "表层泛起高温纹路",
+        "environmental_ripple": "方圆三丈空气升温"
+    });
+
+    let mock_llm = Arc::new(MockLlmClient { return_val: mock_resp });
+    let mut world = PrimordiaWorld::with_llm("心智与感知世界", mock_llm);
+
+    let id_a = world.add_entity_with_domain("地脉游火", "跳跃赤炎", vec!["高热"], "活跃", "地火深渊");
+    let id_b = world.add_entity_with_domain("熔岩晶石", "吸收地热的黑曜晶体", vec!["致密"], "沉寂", "地火深渊");
+    let _ = world.form_assemblage(&id_a, &id_b, "熔岩与地火缔结共生");
+
+    // 验证感知视界提取
+    let horizon = PerceptionEngine::extract_horizon(&world, &id_a);
+    assert!(horizon.is_ok());
+    let h = horizon.unwrap();
+    assert_eq!(h.domain_name, "地火深渊");
+    assert_eq!(h.symbiont_manifestations.len(), 1);
+
+    // 验证实体自主心智行为
+    let act_res = world.act_autonomously(&id_a).await;
+    assert!(act_res.is_ok());
+
+    let target = world.entities.get(&id_a).unwrap();
+    assert_eq!(target.current_state, "表层泛起高温纹路");
+    assert!(target.memory_stream.last().unwrap().contains("萌发自主心智意志"));
 }
 
 #[tokio::test]

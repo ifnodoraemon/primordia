@@ -1,10 +1,13 @@
+pub mod cli;
 pub mod entity;
 pub mod harness;
 pub mod llm;
 pub mod operator;
+pub mod perception;
 pub mod trace;
 pub mod world;
 
+pub use cli::PrimordiaRepl;
 pub use entity::{Entity, Spatial};
 pub use harness::{GenesisSpec, HarnessReport, HarnessStep, Scenario, SimulationHarness};
 pub use llm::{
@@ -12,9 +15,10 @@ pub use llm::{
     OpenAiLlmClient,
 };
 pub use operator::{
-    CausalExecutor, CausalOperator, CosmicLawOperator, MindInhabitationContext,
-    MindInhabitationOperator, MorphogenesisContext, MorphogenesisOperator,
-    SelfEvolutionOperator,
+    AutonomousAgencyOperator, CausalExecutor, CausalOperator, CosmicLawOperator,
+    MindInhabitationContext, MindInhabitationOperator, MorphogenesisContext,
+    MorphogenesisOperator, SelfEvolutionOperator,
 };
+pub use perception::{PerceptionEngine, SensoryHorizon};
 pub use trace::{CausalSpan, CausalityTracer};
 pub use world::{ChronicleEvent, PrimordiaWorld, WorldSnapshot};
