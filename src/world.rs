@@ -1,12 +1,15 @@
 use crate::entity::Entity;
-use crate::llm::{LlmClient, OpenAiLlmClient};
+use crate::llm::{create_llm_client_from_env, LlmClient};
+use crate::operator::{
+    CausalExecutor, CosmicLawOperator, MindInhabitationContext, MindInhabitationOperator,
+    MorphogenesisContext, MorphogenesisOperator, SelfEvolutionOperator,
+};
 use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
-use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChronicleEvent {
@@ -27,6 +30,7 @@ pub struct WorldSnapshot {
     pub tracer: CausalityTracer,
 }
 
+/// 《原初》世界统筹中枢 (Primordia World Facade)
 pub struct PrimordiaWorld {
     pub name: String,
     pub tick_count: u64,
@@ -48,7 +52,7 @@ impl PrimordiaWorld {
             entities: HashMap::new(),
             chronicle: Vec::new(),
             tracer: CausalityTracer::new(),
-            llm: Arc::new(OpenAiLlmClient::new()),
+            llm: create_llm_client_from_env(),
         }
     }
 
@@ -62,6 +66,10 @@ impl PrimordiaWorld {
             tracer: CausalityTracer::new(),
             llm,
         }
+    }
+
+    pub fn llm(&self) -> &dyn LlmClient {
+        self.llm.as_ref()
     }
 
     pub fn add_entity(&mut self, name: &str, essence: &str, traits: Vec<&str>, state: &str) -> String {
@@ -137,257 +145,40 @@ impl PrimordiaWorld {
         Ok(())
     }
 
-    /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution)
-    pub async fn evolve_cosmic_law(&mut self) -> Result<String, String> {
-        let start_time = Instant::now();
-        let system_prompt = "你是《原初》宏观天道推演核心。请根据当前世界纪元、实体总数与历史编年，推演世界宏观法则/环境气候的迁跃相变。\
-            You are the Cosmic Arbiter of Primordia. Reason through the macro-law / atmospheric phase shift of the universe.\
-            请务必返回 JSON: {new_atmosphere: str, cosmic_ripple: str}";
-
-        let context_summary = format!(
-            "当前纪元 / Current Tick: {}\n当前天道气象 / Current Atmosphere: {}\n实体总数 / Total Entities: {}\n最新事件 / Latest Event: {}",
-            self.tick_count,
-            self.cosmic_atmosphere,
-            self.entities.len(),
-            self.chronicle.last().map(|e| e.detail.as_str()).unwrap_or("无")
-        );
-
-        let result = self.llm.generate_json(system_prompt, &context_summary).await?;
-        let duration_ms = start_time.elapsed().as_millis() as u64;
-
-        let new_atmo = result["new_atmosphere"].as_str().unwrap_or(&self.cosmic_atmosphere).to_string();
-        let ripple = result["cosmic_ripple"].as_str().unwrap_or("天道气象微微流变 / Cosmic atmosphere gently ripples").to_string();
-
-        self.cosmic_atmosphere = new_atmo.clone();
-        let event_msg = format!("宏观天道气象发生纪元相变：{} ──► 波纹: {} / Cosmic law phase shift: {} ──► Ripple: {}", new_atmo, ripple, new_atmo, ripple);
-        self.record_event("COSMIC_LAW_SHIFT", &event_msg);
-
-        // 记录 Trace
-        self.tracer.record_span(
-            self.tick_count,
-            "COSMIC_LAW_SHIFT",
-            vec!["@COSMOS".to_string()],
-            system_prompt,
-            &context_summary,
-            result.clone(),
-            &event_msg,
-            duration_ms,
-        );
-
-        Ok(new_atmo)
-    }
-
-    /// 单实体自生长演化 (Autonomous Self-Evolution)
+    /// 单实体自生长演化 (Autonomous Self-Evolution - Strategy Delegation)
     pub async fn evolve_entity(&mut self, ent_id: &str) -> Result<Value, String> {
-        let start_time = Instant::now();
-        let ent = match self.entities.get(ent_id) {
-            Some(e) => e.clone(),
-            None => return Err(format!("Entity {} not found", ent_id)),
-        };
-
-        let system_prompt = "你是《原初》元世界法则裁决核心。万物皆有灵性，自发演变。\
-            You are the generative causality arbiter of Primordia Meta-World.\
-            请根据实体内在状态与当前宏观天道气象，推演其自生长、自变异或心智萌芽。\
-            请务必返回 JSON: {updated_state: str, new_traits: list, new_memory: str, sprouted_child: object or null}";
-
-        let ent_json = serde_json::to_string(&ent).map_err(|e| e.to_string())?;
-        let user_prompt = format!(
-            "当前宏观天道气象 / Cosmic Atmosphere: {}\n目标实体 / Target Entity: {}",
-            self.cosmic_atmosphere, ent_json
-        );
-
-        let result = self.llm.generate_json(system_prompt, &user_prompt).await?;
-        let duration_ms = start_time.elapsed().as_millis() as u64;
-
-        let mut event_msg = None;
-        if let Some(target) = self.entities.get_mut(ent_id) {
-            if let Some(updated_state) = result["updated_state"].as_str() {
-                target.current_state = updated_state.to_string();
-            }
-            if let Some(new_traits) = result["new_traits"].as_array() {
-                for t in new_traits {
-                    if let Some(trait_str) = t.as_str() {
-                        if !target.traits.contains(&trait_str.to_string()) {
-                            target.traits.push(trait_str.to_string());
-                        }
-                    }
-                }
-            }
-            if let Some(new_mem) = result["new_memory"].as_str() {
-                target.record_memory(new_mem.to_string());
-            }
-            event_msg = Some(format!(
-                "【{}】发生自演化：{} / [{}] evolved: {}",
-                target.name, target.current_state, target.name, target.current_state
-            ));
-        }
-
-        let summary = event_msg.clone().unwrap_or_else(|| "自演化完成 / Evolution completed".to_string());
-        if let Some(ref msg) = event_msg {
-            self.record_event("SELF_EVOLVE", msg);
-        }
-
-        // 记录 Trace
-        self.tracer.record_span(
-            self.tick_count,
-            "SELF_EVOLVE",
-            vec![ent_id.to_string()],
-            system_prompt,
-            &user_prompt,
-            result.clone(),
-            &summary,
-            duration_ms,
-        );
-
-        // 检查是否孕育出新实体 / Check if new child sprouted
-        if result["sprouted_child"].is_object() {
-            let child = &result["sprouted_child"];
-            let name = child["name"].as_str().unwrap_or("新生灵元 / Sprouted Animus");
-            let essence = child["essence"].as_str().unwrap_or("演化分裂出的新存在 / Emerging existence");
-            let state = child["current_state"].as_str().unwrap_or("");
-            let traits_arr: Vec<&str> = child["traits"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
-                .unwrap_or_default();
-            self.add_entity(name, essence, traits_arr, state);
-        }
-
-        Ok(result)
+        CausalExecutor::execute(self, &SelfEvolutionOperator, &ent_id.to_string()).await
     }
 
-    /// 两实体碰撞、相变与共生 (Collision, Morphogenesis & Symbiosis)
+    /// 两实体碰撞、相变与共生 (Collision, Morphogenesis & Symbiosis - Strategy Delegation)
     pub async fn collide(&mut self, id_a: &str, id_b: &str) -> Result<Value, String> {
-        let start_time = Instant::now();
-        let ent_a = match self.entities.get(id_a) {
-            Some(e) => e.clone(),
-            None => return Err(format!("Entity {} not found", id_a)),
-        };
-        let ent_b = match self.entities.get(id_b) {
-            Some(e) => e.clone(),
-            None => return Err(format!("Entity {} not found", id_b)),
-        };
-
-        let system_prompt = "你是《原初》元世界法则裁决核心。两实体发生交互碰撞与交融。\
-            You are the generative causality arbiter of Primordia Meta-World.\
-            基于双方本质、感官界面与宏观天道裁决相变结果：互相改变(MUTUAL_CHANGE)、共生装配(ASSEMBLAGE_SYMBIOSIS)、或天地化生(MORPHOGENESIS_NEW)。\
-            请务必返回 JSON: {narrative: str, outcome_type: str, born_entity: object or null, update_a: str, update_b: str}";
-
-        let user_prompt = format!(
-            "当前天道气象 / Cosmic Atmosphere: {}\n实体 A 感官界面 / Entity A Sensual Interface: {}\n实体 A 详情: {}\n实体 B 感官界面 / Entity B Sensual Interface: {}\n实体 B 详情: {}",
-            self.cosmic_atmosphere,
-            ent_a.sensory_manifestation(),
-            serde_json::to_string(&ent_a).map_err(|e| e.to_string())?,
-            ent_b.sensory_manifestation(),
-            serde_json::to_string(&ent_b).map_err(|e| e.to_string())?
-        );
-
-        let result = self.llm.generate_json(system_prompt, &user_prompt).await?;
-        let duration_ms = start_time.elapsed().as_millis() as u64;
-
-        let narrative = result["narrative"].as_str().unwrap_or("两实体发生了碰撞交互。 / Entities collided.").to_string();
-        let outcome_type = result["outcome_type"].as_str().unwrap_or("MUTUAL_CHANGE");
-
-        let event_msg = format!("[{}] {}", outcome_type, narrative);
-        self.record_event("COLLISION_MORPHOGENESIS", &event_msg);
-
-        if outcome_type == "ASSEMBLAGE_SYMBIOSIS" {
-            let _ = self.form_assemblage(id_a, id_b, &narrative);
-        }
-
-        if let Some(target_a) = self.entities.get_mut(id_a) {
-            if let Some(up_a) = result["update_a"].as_str() {
-                target_a.current_state = up_a.to_string();
-            }
-        }
-
-        if let Some(target_b) = self.entities.get_mut(id_b) {
-            if let Some(up_b) = result["update_b"].as_str() {
-                target_b.current_state = up_b.to_string();
-            }
-        }
-
-        if result["born_entity"].is_object() {
-            let born = &result["born_entity"];
-            let name = born["name"].as_str().unwrap_or("化生之灵 / Spontaneous Animus");
-            let essence = born["essence"].as_str().unwrap_or("化生存在 / Morphic being");
-            let state = born["current_state"].as_str().unwrap_or("刚从两者的激荡中化生而出 / Newly manifested");
-            let traits_arr: Vec<&str> = born["traits"]
-                .as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
-                .unwrap_or_default();
-            self.add_entity(name, essence, traits_arr, state);
-        }
-
-        // 记录 Trace
-        self.tracer.record_span(
-            self.tick_count,
-            "COLLISION_MORPHOGENESIS",
-            vec![id_a.to_string(), id_b.to_string()],
-            system_prompt,
-            &user_prompt,
-            result.clone(),
-            &event_msg,
-            duration_ms,
-        );
-
-        Ok(result)
+        CausalExecutor::execute(
+            self,
+            &MorphogenesisOperator,
+            &MorphogenesisContext {
+                id_a: id_a.to_string(),
+                id_b: id_b.to_string(),
+            },
+        )
+        .await
     }
 
-    /// 玩家意识寄宿与意志注入 (Mind Inhabitation & Agency)
+    /// 玩家意识寄宿与意志注入 (Mind Inhabitation & Agency - Strategy Delegation)
     pub async fn inhabit_and_act(&mut self, ent_id: &str, player_intent: &str) -> Result<Value, String> {
-        let start_time = Instant::now();
-        let ent = match self.entities.get(ent_id) {
-            Some(e) => e.clone(),
-            None => return Err(format!("Entity {} not found", ent_id)),
-        };
+        CausalExecutor::execute(
+            self,
+            &MindInhabitationOperator,
+            &MindInhabitationContext {
+                ent_id: ent_id.to_string(),
+                player_intent: player_intent.to_string(),
+            },
+        )
+        .await
+    }
 
-        let system_prompt = "你是《原初》元世界法则裁决核心。玩家作为原初自由意志，寄宿于该实体并发出行动意图。\
-            You are the generative causality arbiter of Primordia Meta-World.\
-            请评估该实体的物理/灵性本质如何响应此意图，推导其自身状态变化与对周围环境的波纹。\
-            请务必返回 JSON: {action_result: str, subject_new_state: str, environmental_ripple: str}";
-
-        let ent_json = serde_json::to_string(&ent).map_err(|e| e.to_string())?;
-        let user_prompt = format!(
-            "当前天道气象 / Cosmic Atmosphere: {}\n寄宿实体 / Inhabited Entity: {}\n玩家自由意志意图 / Player Intent: '{}'",
-            self.cosmic_atmosphere,
-            ent_json,
-            player_intent
-        );
-
-        let result = self.llm.generate_json(system_prompt, &user_prompt).await?;
-        let duration_ms = start_time.elapsed().as_millis() as u64;
-
-        let mut event_msg = None;
-        if let Some(target) = self.entities.get_mut(ent_id) {
-            if let Some(new_state) = result["subject_new_state"].as_str() {
-                target.current_state = new_state.to_string();
-            }
-            target.record_memory(format!("曾被不可名状的宏大意志降临驱使: {} / Guided by divine intent: {}", player_intent, player_intent));
-            let action_res = result["action_result"].as_str().unwrap_or("");
-            event_msg = Some(format!(
-                "玩家寄宿【{}】并行动: {} ──► {} / Player inhabited [{}] and acted: {} ──► {}",
-                target.name, player_intent, action_res, target.name, player_intent, action_res
-            ));
-        }
-
-        let summary = event_msg.clone().unwrap_or_else(|| "寄宿行动完成 / Inhabitation complete".to_string());
-        if let Some(ref msg) = event_msg {
-            self.record_event("MIND_INHABITATION", msg);
-        }
-
-        // 记录 Trace
-        self.tracer.record_span(
-            self.tick_count,
-            "MIND_INHABITATION",
-            vec![ent_id.to_string()],
-            system_prompt,
-            &user_prompt,
-            result.clone(),
-            &summary,
-            duration_ms,
-        );
-
-        Ok(result)
+    /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution - Strategy Delegation)
+    pub async fn evolve_cosmic_law(&mut self) -> Result<String, String> {
+        CausalExecutor::execute(self, &CosmicLawOperator, &()).await
     }
 
     /// 推进一个世界纪元周期 (Advance World Epoch Tick)

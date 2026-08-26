@@ -14,7 +14,14 @@ pub struct GenesisSpec {
     pub domain: String,
 }
 
-/// Harness 仿真驱动单步动作 (Harness Driver Step)
+/// 步骤执行结果状态 (Step Execution Outcome)
+pub enum StepOutcome {
+    ActionSuccess,
+    AssertionPassed(String),
+    AssertionFailed(String),
+}
+
+/// Harness 仿真驱动单步动作 (Harness Command Pattern)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HarnessStep {
     /// 玩家意识寄宿并行动
@@ -40,6 +47,83 @@ pub enum HarnessStep {
     },
     /// 断言：编年史包含某类型事件
     AssertChronicleContains { event_type: String },
+}
+
+impl HarnessStep {
+    /// 执行单个命令或断言 (Command Execution)
+    pub async fn execute(&self, world: &mut PrimordiaWorld) -> Result<StepOutcome, String> {
+        match self {
+            HarnessStep::InhabitAndAct { entity_name_or_id, intent } => {
+                let target_id = find_entity_id(world, entity_name_or_id)
+                    .ok_or_else(|| format!("Entity '{}' not found for InhabitAndAct", entity_name_or_id))?;
+                world.inhabit_and_act(&target_id, intent).await?;
+                Ok(StepOutcome::ActionSuccess)
+            }
+            HarnessStep::Collide { entity_a, entity_b } => {
+                let id_a = find_entity_id(world, entity_a)
+                    .ok_or_else(|| format!("Entity A '{}' not found for Collide", entity_a))?;
+                let id_b = find_entity_id(world, entity_b)
+                    .ok_or_else(|| format!("Entity B '{}' not found for Collide", entity_b))?;
+                world.collide(&id_a, &id_b).await?;
+                Ok(StepOutcome::ActionSuccess)
+            }
+            HarnessStep::ShiftCosmicLaw => {
+                world.evolve_cosmic_law().await?;
+                Ok(StepOutcome::ActionSuccess)
+            }
+            HarnessStep::TickEpoch { count } => {
+                for _ in 0..*count {
+                    world.tick().await?;
+                }
+                Ok(StepOutcome::ActionSuccess)
+            }
+            HarnessStep::AssertEntityCount { expected } => {
+                let actual = world.entities.len();
+                if actual == *expected {
+                    Ok(StepOutcome::AssertionPassed(format!("Entity count is {} as expected.", actual)))
+                } else {
+                    Ok(StepOutcome::AssertionFailed(format!("Expected entity count {}, found {}", expected, actual)))
+                }
+            }
+            HarnessStep::AssertEntityHasTrait { entity_name_substr, trait_substr } => {
+                let matched = world.entities.values().find(|e| e.name.contains(entity_name_substr));
+                match matched {
+                    Some(ent) => {
+                        let has_trait = ent.traits.iter().any(|t| t.contains(trait_substr));
+                        if has_trait {
+                            Ok(StepOutcome::AssertionPassed(format!("Entity [{}] possesses trait '{}'.", ent.name, trait_substr)))
+                        } else {
+                            Ok(StepOutcome::AssertionFailed(format!("Entity [{}] does not have trait '{}'", ent.name, trait_substr)))
+                        }
+                    }
+                    None => {
+                        Ok(StepOutcome::AssertionFailed(format!("Entity with name substr '{}' not found for trait assertion", entity_name_substr)))
+                    }
+                }
+            }
+            HarnessStep::AssertChronicleContains { event_type } => {
+                let has_event = world.chronicle.iter().any(|e| &e.event_type == event_type);
+                if has_event {
+                    Ok(StepOutcome::AssertionPassed(format!("Chronicle contains event type '{}'.", event_type)))
+                } else {
+                    Ok(StepOutcome::AssertionFailed(format!("Chronicle does not contain event type '{}'", event_type)))
+                }
+            }
+        }
+    }
+}
+
+/// 辅助函数：根据名称子串或 ID 精准定位实体
+fn find_entity_id(world: &PrimordiaWorld, name_or_id: &str) -> Option<String> {
+    if world.entities.contains_key(name_or_id) {
+        return Some(name_or_id.to_string());
+    }
+    for (id, ent) in &world.entities {
+        if ent.name.contains(name_or_id) || id == name_or_id {
+            return Some(id.clone());
+        }
+    }
+    None
 }
 
 /// 仿真剧本定义 (Simulation Scenario)
@@ -104,76 +188,19 @@ impl SimulationHarness {
         let mut failures = Vec::new();
         let mut steps_executed = 0;
 
-        // 2. 依次驱动各个仿真步骤 / Driving Steps
+        // 2. 依次驱动各个仿真命令 (Command Pattern Execution)
         for step in scenario.steps {
             steps_executed += 1;
-            match step {
-                HarnessStep::InhabitAndAct { entity_name_or_id, intent } => {
-                    let target_id = self.find_entity_id(&entity_name_or_id)
-                        .ok_or_else(|| format!("Entity '{}' not found for InhabitAndAct", entity_name_or_id))?;
-                    self.world.inhabit_and_act(&target_id, &intent).await?;
+            match step.execute(&mut self.world).await? {
+                StepOutcome::ActionSuccess => {}
+                StepOutcome::AssertionPassed(msg) => {
+                    assertions_passed += 1;
+                    println!("  ✅ [Assertion Passed] {}", msg);
                 }
-                HarnessStep::Collide { entity_a, entity_b } => {
-                    let id_a = self.find_entity_id(&entity_a)
-                        .ok_or_else(|| format!("Entity A '{}' not found for Collide", entity_a))?;
-                    let id_b = self.find_entity_id(&entity_b)
-                        .ok_or_else(|| format!("Entity B '{}' not found for Collide", entity_b))?;
-                    self.world.collide(&id_a, &id_b).await?;
-                }
-                HarnessStep::ShiftCosmicLaw => {
-                    self.world.evolve_cosmic_law().await?;
-                }
-                HarnessStep::TickEpoch { count } => {
-                    for _ in 0..count {
-                        self.world.tick().await?;
-                    }
-                }
-                HarnessStep::AssertEntityCount { expected } => {
-                    let actual = self.world.entities.len();
-                    if actual == expected {
-                        assertions_passed += 1;
-                        println!("  ✅ [Assertion Passed] Entity count is {} as expected.", actual);
-                    } else {
-                        assertions_failed += 1;
-                        let msg = format!("Assertion failed: Expected entity count {}, found {}", expected, actual);
-                        println!("  ❌ [Assertion FAILED] {}", msg);
-                        failures.push(msg);
-                    }
-                }
-                HarnessStep::AssertEntityHasTrait { entity_name_substr, trait_substr } => {
-                    let matched = self.world.entities.values().find(|e| e.name.contains(&entity_name_substr));
-                    match matched {
-                        Some(ent) => {
-                            let has_trait = ent.traits.iter().any(|t| t.contains(&trait_substr));
-                            if has_trait {
-                                assertions_passed += 1;
-                                println!("  ✅ [Assertion Passed] Entity [{}] possesses trait '{}'.", ent.name, trait_substr);
-                            } else {
-                                assertions_failed += 1;
-                                let msg = format!("Entity [{}] does not have trait '{}'", ent.name, trait_substr);
-                                println!("  ❌ [Assertion FAILED] {}", msg);
-                                failures.push(msg);
-                            }
-                        }
-                        None => {
-                            assertions_failed += 1;
-                            let msg = format!("Entity with name substr '{}' not found for trait assertion", entity_name_substr);
-                            println!("  ❌ [Assertion FAILED] {}", msg);
-                            failures.push(msg);
-                        }
-                    }
-                }
-                HarnessStep::AssertChronicleContains { event_type } => {
-                    let has_event = self.world.chronicle.iter().any(|e| e.event_type == event_type);
-                    if has_event {
-                        assertions_passed += 1;
-                        println!("  ✅ [Assertion Passed] Chronicle contains event type '{}'.", event_type);
-                    } else {
-                        assertions_failed += 1;
-                        let msg = format!("Chronicle does not contain event type '{}'", event_type);
-                        println!("  ❌ [Assertion FAILED] {}", msg);
-                        failures.push(msg);
-                    }
+                StepOutcome::AssertionFailed(msg) => {
+                    assertions_failed += 1;
+                    println!("  ❌ [Assertion FAILED] {}", msg);
+                    failures.push(msg);
                 }
             }
         }
@@ -203,17 +230,5 @@ impl SimulationHarness {
         println!("  - 链路追踪 / Trace: {}", report.trace_summary);
 
         Ok(report)
-    }
-
-    fn find_entity_id(&self, name_or_id: &str) -> Option<String> {
-        if self.world.entities.contains_key(name_or_id) {
-            return Some(name_or_id.to_string());
-        }
-        for (id, ent) in &self.world.entities {
-            if ent.name.contains(name_or_id) || id == name_or_id {
-                return Some(id.clone());
-            }
-        }
-        None
     }
 }

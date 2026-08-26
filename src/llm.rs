@@ -41,7 +41,7 @@ fn parse_json_from_llm_text(text: &str) -> Result<Value, String> {
     })
 }
 
-/// 离线模拟第一性原理回退推演
+/// 离线模拟第一性原理回退推演 (First-Principles Offline Fallback)
 fn mock_offline_reasoning(system_prompt: &str, user_prompt: &str) -> Value {
     if system_prompt.contains("宏观天道") || system_prompt.contains("Cosmic Law") || system_prompt.contains("Cosmic Arbiter") {
         return serde_json::json!({
@@ -73,176 +73,139 @@ fn mock_offline_reasoning(system_prompt: &str, user_prompt: &str) -> Value {
 }
 
 // =========================================================================
-// 1 & 2. OpenAI 客户端（支持 Chat Completions 与 Responses 两种协议格式）
+// 协议策略接口 (Protocol Strategy Trait)
 // =========================================================================
-
-pub struct OpenAiLlmClient {
-    api_key: Option<String>,
-    api_base: String,
-    model: String,
-    protocol: LlmProtocol,
-    client: reqwest::Client,
-}
-
-impl OpenAiLlmClient {
-    pub fn new() -> Self {
-        let api_key = env::var("OPENAI_API_KEY").ok();
-        let api_base = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
-        let model = env::var("LLM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
-        let protocol_str = env::var("OPENAI_PROTOCOL").unwrap_or_else(|_| "chat".to_string());
-        let protocol = if protocol_str.to_lowercase() == "responses" {
-            LlmProtocol::OpenAiResponses
-        } else {
-            LlmProtocol::OpenAiChat
-        };
-
-        Self {
-            api_key,
-            api_base,
-            model,
-            protocol,
-            client: reqwest::Client::new(),
-        }
-    }
-
-    pub fn with_protocol(mut self, protocol: LlmProtocol) -> Self {
-        self.protocol = protocol;
-        self
-    }
-}
-
-impl Default for OpenAiLlmClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[async_trait]
-impl LlmClient for OpenAiLlmClient {
-    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
-        let key = match self.api_key {
-            Some(ref k) => k,
-            None => return Ok(mock_offline_reasoning(system_prompt, user_prompt)),
-        };
-
-        match self.protocol {
-            // OpenAI 格式一：/v1/chat/completions
-            LlmProtocol::OpenAiChat => {
-                let url = format!("{}/chat/completions", self.api_base);
-                let body = serde_json::json!({
-                    "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "response_format": {"type": "json_object"}
-                });
-
-                let res = self.client
-                    .post(&url)
-                    .bearer_auth(key)
-                    .json(&body)
-                    .send()
-                    .await
-                    .map_err(|e| format!("OpenAI Chat request failed: {}", e))?;
-
-                if !res.status().is_success() {
-                    return Err(format!("OpenAI API error status: {}", res.status()));
-                }
-
-                let resp_json: Value = res.json().await.map_err(|e| format!("Failed to parse response JSON: {}", e))?;
-                if let Some(content) = resp_json["choices"][0]["message"]["content"].as_str() {
-                    return parse_json_from_llm_text(content);
-                }
-                Err("Missing content in OpenAI Chat response choices".to_string())
-            }
-
-            // OpenAI 格式二：/v1/responses
-            LlmProtocol::OpenAiResponses => {
-                let url = format!("{}/responses", self.api_base);
-                let body = serde_json::json!({
-                    "model": self.model,
-                    "input": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "response_format": {"type": "json_object"}
-                });
-
-                let res = self.client
-                    .post(&url)
-                    .bearer_auth(key)
-                    .json(&body)
-                    .send()
-                    .await
-                    .map_err(|e| format!("OpenAI Responses request failed: {}", e))?;
-
-                if !res.status().is_success() {
-                    return Err(format!("OpenAI Responses API error status: {}", res.status()));
-                }
-
-                let resp_json: Value = res.json().await.map_err(|e| format!("Failed to parse response JSON: {}", e))?;
-                // 兼容 responses 规范中的 output_text 或 output[0].content[0].text
-                if let Some(content) = resp_json["output_text"].as_str() {
-                    return parse_json_from_llm_text(content);
-                }
-                if let Some(content) = resp_json["output"][0]["content"][0]["text"].as_str() {
-                    return parse_json_from_llm_text(content);
-                }
-                if let Some(content) = resp_json["choices"][0]["message"]["content"].as_str() {
-                    return parse_json_from_llm_text(content);
-                }
-                Err("Missing content in OpenAI Responses API response".to_string())
-            }
-
-            _ => Err("Invalid protocol for OpenAiLlmClient".to_string()),
-        }
-    }
+pub trait ProtocolStrategy: Send + Sync {
+    async fn send_request(
+        &self,
+        client: &reqwest::Client,
+        api_base: &str,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<Value, String>;
 }
 
-// =========================================================================
-// 3. Anthropic 客户端（Claude Messages API 协议格式）
-// =========================================================================
-
-pub struct AnthropicLlmClient {
-    api_key: Option<String>,
-    api_base: String,
-    model: String,
-    client: reqwest::Client,
-}
-
-impl AnthropicLlmClient {
-    pub fn new() -> Self {
-        let api_key = env::var("ANTHROPIC_API_KEY").ok();
-        let api_base = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
-        let model = env::var("ANTHROPIC_MODEL").unwrap_or_else(|_| "claude-3-5-sonnet-20241022".to_string());
-
-        Self {
-            api_key,
-            api_base,
-            model,
-            client: reqwest::Client::new(),
-        }
-    }
-}
-
-impl Default for AnthropicLlmClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// -------------------------------------------------------------------------
+// 1. OpenAI Chat Completions Strategy
+// -------------------------------------------------------------------------
+pub struct OpenAiChatStrategy;
 
 #[async_trait]
-impl LlmClient for AnthropicLlmClient {
-    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
-        let key = match self.api_key {
-            Some(ref k) => k,
-            None => return Ok(mock_offline_reasoning(system_prompt, user_prompt)),
-        };
-
-        let url = format!("{}/v1/messages", self.api_base);
+impl ProtocolStrategy for OpenAiChatStrategy {
+    async fn send_request(
+        &self,
+        client: &reqwest::Client,
+        api_base: &str,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<Value, String> {
+        let url = format!("{}/chat/completions", api_base);
         let body = serde_json::json!({
-            "model": self.model,
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "response_format": {"type": "json_object"}
+        });
+
+        let res = client
+            .post(&url)
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("OpenAI Chat request failed: {}", e))?;
+
+        if !res.status().is_success() {
+            return Err(format!("OpenAI API error status: {}", res.status()));
+        }
+
+        let resp_json: Value = res.json().await.map_err(|e| format!("Failed to parse response JSON: {}", e))?;
+        if let Some(content) = resp_json["choices"][0]["message"]["content"].as_str() {
+            return parse_json_from_llm_text(content);
+        }
+        Err("Missing content in OpenAI Chat response choices".to_string())
+    }
+}
+
+// -------------------------------------------------------------------------
+// 2. OpenAI Responses Strategy
+// -------------------------------------------------------------------------
+pub struct OpenAiResponsesStrategy;
+
+#[async_trait]
+impl ProtocolStrategy for OpenAiResponsesStrategy {
+    async fn send_request(
+        &self,
+        client: &reqwest::Client,
+        api_base: &str,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<Value, String> {
+        let url = format!("{}/responses", api_base);
+        let body = serde_json::json!({
+            "model": model,
+            "input": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "response_format": {"type": "json_object"}
+        });
+
+        let res = client
+            .post(&url)
+            .bearer_auth(api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("OpenAI Responses request failed: {}", e))?;
+
+        if !res.status().is_success() {
+            return Err(format!("OpenAI Responses API error status: {}", res.status()));
+        }
+
+        let resp_json: Value = res.json().await.map_err(|e| format!("Failed to parse response JSON: {}", e))?;
+        if let Some(content) = resp_json["output_text"].as_str() {
+            return parse_json_from_llm_text(content);
+        }
+        if let Some(content) = resp_json["output"][0]["content"][0]["text"].as_str() {
+            return parse_json_from_llm_text(content);
+        }
+        if let Some(content) = resp_json["choices"][0]["message"]["content"].as_str() {
+            return parse_json_from_llm_text(content);
+        }
+        Err("Missing content in OpenAI Responses API response".to_string())
+    }
+}
+
+// -------------------------------------------------------------------------
+// 3. Anthropic Messages Strategy
+// -------------------------------------------------------------------------
+pub struct AnthropicMessagesStrategy;
+
+#[async_trait]
+impl ProtocolStrategy for AnthropicMessagesStrategy {
+    async fn send_request(
+        &self,
+        client: &reqwest::Client,
+        api_base: &str,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<Value, String> {
+        let url = format!("{}/v1/messages", api_base);
+        let body = serde_json::json!({
+            "model": model,
             "max_tokens": 4096,
             "system": format!("{}\n\nIMPORTANT: You must return raw JSON only with no conversational text.", system_prompt),
             "messages": [
@@ -250,9 +213,9 @@ impl LlmClient for AnthropicLlmClient {
             ]
         });
 
-        let res = self.client
+        let res = client
             .post(&url)
-            .header("x-api-key", key)
+            .header("x-api-key", api_key)
             .header("anthropic-version", "2023-06-01")
             .header("content-type", "application/json")
             .json(&body)
@@ -273,51 +236,23 @@ impl LlmClient for AnthropicLlmClient {
     }
 }
 
-// =========================================================================
-// 4. Google 客户端（Gemini GenerateContent API 协议格式）
-// =========================================================================
-
-pub struct GeminiLlmClient {
-    api_key: Option<String>,
-    api_base: String,
-    model: String,
-    client: reqwest::Client,
-}
-
-impl GeminiLlmClient {
-    pub fn new() -> Self {
-        let api_key = env::var("GEMINI_API_KEY")
-            .or_else(|_| env::var("GOOGLE_API_KEY"))
-            .ok();
-        let api_base = env::var("GEMINI_BASE_URL")
-            .unwrap_or_else(|_| "https://generativelanguage.googleapis.com".to_string());
-        let model = env::var("GEMINI_MODEL")
-            .unwrap_or_else(|_| "gemini-1.5-flash".to_string());
-
-        Self {
-            api_key,
-            api_base,
-            model,
-            client: reqwest::Client::new(),
-        }
-    }
-}
-
-impl Default for GeminiLlmClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// -------------------------------------------------------------------------
+// 4. Google Gemini GenerateContent Strategy
+// -------------------------------------------------------------------------
+pub struct GeminiGenerateContentStrategy;
 
 #[async_trait]
-impl LlmClient for GeminiLlmClient {
-    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
-        let key = match self.api_key {
-            Some(ref k) => k,
-            None => return Ok(mock_offline_reasoning(system_prompt, user_prompt)),
-        };
-
-        let url = format!("{}/v1beta/models/{}:generateContent?key={}", self.api_base, self.model, key);
+impl ProtocolStrategy for GeminiGenerateContentStrategy {
+    async fn send_request(
+        &self,
+        client: &reqwest::Client,
+        api_base: &str,
+        api_key: &str,
+        model: &str,
+        system_prompt: &str,
+        user_prompt: &str,
+    ) -> Result<Value, String> {
+        let url = format!("{}/v1beta/models/{}:generateContent?key={}", api_base, model, api_key);
         let body = serde_json::json!({
             "contents": [
                 {
@@ -333,7 +268,7 @@ impl LlmClient for GeminiLlmClient {
             }
         });
 
-        let res = self.client
+        let res = client
             .post(&url)
             .json(&body)
             .send()
@@ -354,7 +289,167 @@ impl LlmClient for GeminiLlmClient {
 }
 
 // =========================================================================
-// 5. 通用大模型工厂函数 (Universal Factory: Auto-detect from Environment)
+// 统一模型客户端实现 (Unified LLM Client with Strategy Delegation)
+// =========================================================================
+
+pub struct GenericLlmClient {
+    api_key: Option<String>,
+    api_base: String,
+    model: String,
+    strategy: Box<dyn ProtocolStrategy>,
+    client: reqwest::Client,
+}
+
+impl GenericLlmClient {
+    pub fn new(
+        api_key: Option<String>,
+        api_base: String,
+        model: String,
+        strategy: Box<dyn ProtocolStrategy>,
+    ) -> Self {
+        Self {
+            api_key,
+            api_base,
+            model,
+            strategy,
+            client: reqwest::Client::new(),
+        }
+    }
+}
+
+#[async_trait]
+impl LlmClient for GenericLlmClient {
+    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
+        match self.api_key {
+            Some(ref key) => {
+                self.strategy
+                    .send_request(
+                        &self.client,
+                        &self.api_base,
+                        key,
+                        &self.model,
+                        system_prompt,
+                        user_prompt,
+                    )
+                    .await
+            }
+            None => Ok(mock_offline_reasoning(system_prompt, user_prompt)),
+        }
+    }
+}
+
+// -------------------------------------------------------------------------
+// 快捷包装类型 (OpenAiLlmClient, AnthropicLlmClient, GeminiLlmClient)
+// -------------------------------------------------------------------------
+
+pub struct OpenAiLlmClient {
+    inner: GenericLlmClient,
+}
+
+impl OpenAiLlmClient {
+    pub fn new() -> Self {
+        let api_key = env::var("OPENAI_API_KEY").ok();
+        let api_base = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+        let model = env::var("LLM_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let protocol_str = env::var("OPENAI_PROTOCOL").unwrap_or_else(|_| "chat".to_string());
+        let strategy: Box<dyn ProtocolStrategy> = if protocol_str.to_lowercase() == "responses" {
+            Box::new(OpenAiResponsesStrategy)
+        } else {
+            Box::new(OpenAiChatStrategy)
+        };
+
+        Self {
+            inner: GenericLlmClient::new(api_key, api_base, model, strategy),
+        }
+    }
+
+    pub fn with_protocol(mut self, protocol: LlmProtocol) -> Self {
+        let strategy: Box<dyn ProtocolStrategy> = match protocol {
+            LlmProtocol::OpenAiResponses => Box::new(OpenAiResponsesStrategy),
+            _ => Box::new(OpenAiChatStrategy),
+        };
+        self.inner.strategy = strategy;
+        self
+    }
+}
+
+impl Default for OpenAiLlmClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl LlmClient for OpenAiLlmClient {
+    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
+        self.inner.generate_json(system_prompt, user_prompt).await
+    }
+}
+
+pub struct AnthropicLlmClient {
+    inner: GenericLlmClient,
+}
+
+impl AnthropicLlmClient {
+    pub fn new() -> Self {
+        let api_key = env::var("ANTHROPIC_API_KEY").ok();
+        let api_base = env::var("ANTHROPIC_BASE_URL").unwrap_or_else(|_| "https://api.anthropic.com".to_string());
+        let model = env::var("ANTHROPIC_MODEL").unwrap_or_else(|_| "claude-3-5-sonnet-20241022".to_string());
+
+        Self {
+            inner: GenericLlmClient::new(api_key, api_base, model, Box::new(AnthropicMessagesStrategy)),
+        }
+    }
+}
+
+impl Default for AnthropicLlmClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl LlmClient for AnthropicLlmClient {
+    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
+        self.inner.generate_json(system_prompt, user_prompt).await
+    }
+}
+
+pub struct GeminiLlmClient {
+    inner: GenericLlmClient,
+}
+
+impl GeminiLlmClient {
+    pub fn new() -> Self {
+        let api_key = env::var("GEMINI_API_KEY")
+            .or_else(|_| env::var("GOOGLE_API_KEY"))
+            .ok();
+        let api_base = env::var("GEMINI_BASE_URL")
+            .unwrap_or_else(|_| "https://generativelanguage.googleapis.com".to_string());
+        let model = env::var("GEMINI_MODEL")
+            .unwrap_or_else(|_| "gemini-1.5-flash".to_string());
+
+        Self {
+            inner: GenericLlmClient::new(api_key, api_base, model, Box::new(GeminiGenerateContentStrategy)),
+        }
+    }
+}
+
+impl Default for GeminiLlmClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl LlmClient for GeminiLlmClient {
+    async fn generate_json(&self, system_prompt: &str, user_prompt: &str) -> Result<Value, String> {
+        self.inner.generate_json(system_prompt, user_prompt).await
+    }
+}
+
+// =========================================================================
+// 通用大模型工厂函数 (Universal Factory: Auto-detect from Environment)
 // =========================================================================
 
 pub fn create_llm_client_from_env() -> Arc<dyn LlmClient> {
@@ -368,7 +463,6 @@ pub fn create_llm_client_from_env() -> Arc<dyn LlmClient> {
         "gemini" | "google" => Arc::new(GeminiLlmClient::new()),
         "openai" | "chat" => Arc::new(OpenAiLlmClient::new()),
         _ => {
-            // 依据环境变量自动探测优先协议
             if env::var("GEMINI_API_KEY").is_ok() || env::var("GOOGLE_API_KEY").is_ok() {
                 Arc::new(GeminiLlmClient::new())
             } else if env::var("ANTHROPIC_API_KEY").is_ok() {
