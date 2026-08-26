@@ -1,16 +1,15 @@
 use primordia::{
-    GenesisSpec, HarnessStep, OpenAiLlmClient, Scenario, SimulationHarness,
+    create_llm_client_from_env, GenesisSpec, HarnessStep, Scenario, SimulationHarness,
 };
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=================================================================");
     println!("  🌌 《原初》（Primordia: Meta）- Rust 核心引擎启动");
-    println!("  LLM-Native · Universal Animacy · Harness-Driven Meta-World");
+    println!("  LLM-Native · Universal Animacy · Multi-Provider Harness");
     println!("=================================================================\n");
 
-    let llm = Arc::new(OpenAiLlmClient::new());
+    let llm = create_llm_client_from_env();
     let mut harness = SimulationHarness::new("原初宇宙 0 号 / Universe-Zero", llm);
 
     // 定义基准仿真剧本 (Benchmark Scenario)

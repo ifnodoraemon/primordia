@@ -82,11 +82,39 @@ cargo run
 cargo test
 ```
 
-### 配置真实大模型 API / Configure Real LLM API:
-支持任意兼容 OpenAI 接口的模型（如 GPT-4o, DeepSeek, Qwen, Ollama, vLLM）：
+### 配置主流大模型 API / Configure LLM Provider API:
+
+系统原生支持 4 套主流大模型协议规范（无 OpenSSL C 依赖，开箱即用）：
+
+#### 1. OpenAI 格式一：Chat Completions API (默认 / Default)
 ```bash
-export OPENAI_API_KEY="your-api-key"
-export OPENAI_BASE_URL="https://api.openai.com/v1" # 或本地端点 / Or local endpoint
+export OPENAI_API_KEY="sk-..."
+export OPENAI_BASE_URL="https://api.openai.com/v1" # 或兼容端点 (DeepSeek, Qwen, Ollama, vLLM)
 export LLM_MODEL="gpt-4o-mini"
+cargo run
+```
+
+#### 2. OpenAI 格式二：Responses API
+```bash
+export LLM_PROVIDER="openai-responses"
+export OPENAI_API_KEY="sk-..."
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+export LLM_MODEL="gpt-4o-mini"
+cargo run
+```
+
+#### 3. Anthropic 格式：Claude Messages API
+```bash
+export LLM_PROVIDER="anthropic"
+export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_MODEL="claude-3-5-sonnet-20241022"
+cargo run
+```
+
+#### 4. Google 格式：Gemini GenerateContent API
+```bash
+export LLM_PROVIDER="gemini"
+export GEMINI_API_KEY="AIzaSy..."
+export GEMINI_MODEL="gemini-1.5-flash"
 cargo run
 ```
