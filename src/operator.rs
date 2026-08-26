@@ -26,7 +26,7 @@ pub trait CausalOperator {
 }
 
 // =========================================================================
-// 1. 自生长演化算子 (Self-Evolution Operator)
+// 1. 自生长与生命周期演化算子 (Self-Evolution & Lifecycle Operator)
 // =========================================================================
 
 pub struct SelfEvolutionOperator;
@@ -47,14 +47,23 @@ impl CausalOperator for SelfEvolutionOperator {
         let ent = world.entities.get(ctx).ok_or_else(|| format!("Entity {} not found", ctx))?;
         let horizon = PerceptionEngine::extract_horizon(world, ctx)?;
 
-        let system_prompt = "你是《原初》元世界法则裁决核心。万物皆有灵性，自发演变。\
+        let system_prompt = "你是《原初》元世界法则裁决核心。万物皆有灵性，自发遵循‘成·住·坏·空’（初生·成熟·风化衰败·归墟解体）自创生法则演化。\
             You are the generative causality arbiter of Primordia Meta-World.\
-            请根据实体内在状态、宏观天道气象及局部感知视界，推演其自生长、自变异或心智萌芽。\
-            请务必返回 JSON: {updated_state: str, new_traits: list, new_memory: str, sprouted_child: object or null}".to_string();
+            请根据其实体本质、全部历史记忆（包括曾经被意识寄宿/碰撞交互的过往）、宏观天道气象与局部感知视界，推演其自演化。\
+            评估其实体结构是欣欣向荣、发生异变突变、或是遭受风化衰变/病变老化，乃至耗散归墟。\
+            请务必返回 JSON: {\
+                updated_state: str, \
+                new_traits: list, \
+                new_memory: str, \
+                lifecycle_phase: str (Genesis/Flourishing/Decay/Dissolution), \
+                cohesion_change: float (-0.3 to +0.2), \
+                domain_nourishment: str or null, \
+                sprouted_child: object or null\
+            }".to_string();
 
         let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
         let user_prompt = format!(
-            "当前宏观天道气象 / Cosmic Atmosphere: {}\n{}\n目标实体 / Target Entity: {}",
+            "当前宏观天道气象 / Cosmic Atmosphere: {}\n{}\n目标实体全景（含历史记忆流） / Target Entity Full Context:\n{}",
             world.cosmic_atmosphere,
             horizon.to_prompt_context(),
             ent_json
@@ -70,8 +79,14 @@ impl CausalOperator for SelfEvolutionOperator {
         result: &Value,
     ) -> Result<(Self::Output, String), String> {
         let mut event_detail = String::new();
+        let mut is_dissolved = false;
+        let mut domain_name = String::new();
+        let mut entity_name = String::new();
 
         if let Some(target) = world.entities.get_mut(ctx) {
+            entity_name = target.name.clone();
+            domain_name = target.spatial.domain.clone();
+
             if let Some(updated_state) = result["updated_state"].as_str() {
                 target.current_state = updated_state.to_string();
             }
@@ -87,9 +102,47 @@ impl CausalOperator for SelfEvolutionOperator {
             if let Some(new_mem) = result["new_memory"].as_str() {
                 target.record_memory(new_mem.to_string());
             }
-            event_detail = format!(
-                "【{}】发生自演化：{} / [{}] evolved: {}",
-                target.name, target.current_state, target.name, target.current_state
+
+            // 更新生命周期阶段与存在凝聚度 (Lifecycle Phase & Cohesion)
+            if let Some(phase_str) = result["lifecycle_phase"].as_str() {
+                target.lifecycle = crate::entity::LifecyclePhase::from_str_loose(phase_str);
+            }
+            if let Some(delta) = result["cohesion_change"].as_f64() {
+                target.cohesion = (target.cohesion + delta).clamp(0.0, 1.0);
+            }
+
+            // 判断是否达到消解归墟阶段 (Dissolution / Return to Void)
+            if target.lifecycle == crate::entity::LifecyclePhase::Dissolution || target.cohesion <= 0.05 {
+                is_dissolved = true;
+                target.lifecycle = crate::entity::LifecyclePhase::Dissolution;
+                event_detail = format!(
+                    "【{}】历经漫长岁月演变，形体耗散归墟，灵蕴反哺场域【{}】 / [{}] dissolved into void, nourishing domain [{}]",
+                    target.name, target.spatial.domain, target.name, target.spatial.domain
+                );
+            } else {
+                event_detail = format!(
+                    "【{}】发生自演化（阶段: {} | 凝聚度: {:.2}）：{} / [{}] evolved ({}: {:.2}): {}",
+                    target.name,
+                    target.lifecycle.as_str(),
+                    target.cohesion,
+                    target.current_state,
+                    target.name,
+                    target.lifecycle.as_str(),
+                    target.cohesion,
+                    target.current_state
+                );
+            }
+        }
+
+        // 如果实体彻底解体归墟，解除共生装配关联
+        if is_dissolved {
+            for (_, other) in world.entities.iter_mut() {
+                other.unlink_assemblage(ctx);
+            }
+            let nourishment = result["domain_nourishment"].as_str().unwrap_or("沉淀下微弱的灵性尘埃，滋养周遭万物 / Precipitaded ethereal stardust, nourishing surroundings");
+            world.record_event(
+                "ENTITY_DISSOLUTION",
+                &format!("【{}】归墟反哺：{} / [{}] Void Return: {}", entity_name, nourishment, entity_name, nourishment),
             );
         }
 
@@ -103,7 +156,7 @@ impl CausalOperator for SelfEvolutionOperator {
                 .as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
                 .unwrap_or_default();
-            world.add_entity(name, essence, traits_arr, state);
+            world.add_entity_with_domain(name, essence, traits_arr, state, &domain_name);
         }
 
         Ok((result.clone(), event_detail))

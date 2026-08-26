@@ -160,3 +160,27 @@ async fn test_world_epoch_tick() {
     assert!(tick_res.is_ok());
     assert_eq!(world.tick_count, 1);
 }
+
+#[tokio::test]
+async fn test_entity_lifecycle_and_dissolution() {
+    let mock_resp = serde_json::json!({
+        "updated_state": "形体在漫长岁月风化中崩解为尘埃",
+        "new_traits": ["风化粉尘"],
+        "new_memory": "形体消散，灵蕴回归大地",
+        "lifecycle_phase": "Dissolution",
+        "cohesion_change": -0.95,
+        "domain_nourishment": "散落为十里沃土与灵气微尘"
+    });
+
+    let mock_llm = Arc::new(MockLlmClient { return_val: mock_resp });
+    let mut world = PrimordiaWorld::with_llm("归墟测试世界", mock_llm);
+
+    let id = world.add_entity_with_domain("暮年古岩", "风化中的巨石", vec!["残破"], "布满裂痕", "无尽荒原");
+    let res = world.evolve_entity(&id).await;
+    assert!(res.is_ok());
+
+    let target = world.entities.get(&id).unwrap();
+    assert_eq!(target.lifecycle, primordia::LifecyclePhase::Dissolution);
+    assert!((target.cohesion - 0.05).abs() < 1e-5);
+    assert!(world.chronicle.iter().any(|e| e.event_type == "ENTITY_DISSOLUTION"));
+}

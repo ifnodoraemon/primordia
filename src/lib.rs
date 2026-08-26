@@ -8,7 +8,7 @@ pub mod trace;
 pub mod world;
 
 pub use cli::PrimordiaRepl;
-pub use entity::{Entity, Spatial};
+pub use entity::{Entity, LifecyclePhase, Spatial};
 pub use harness::{GenesisSpec, HarnessReport, HarnessStep, Scenario, SimulationHarness};
 pub use llm::{
     create_llm_client_from_env, AnthropicLlmClient, GeminiLlmClient, LlmClient, LlmProtocol,

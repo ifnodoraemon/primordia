@@ -64,6 +64,8 @@ fn mock_offline_reasoning(system_prompt: &str, user_prompt: &str) -> Value {
         "updated_state": "表面渗透出微弱的虹彩辉光，内部物质开始自发分层旋转，呼吸着虚空中的微光",
         "new_traits": ["虹彩辉光 / Iridescent Sheen", "内部自旋 / Internal Spin"],
         "new_memory": "感受到了时光与宏观天道在周围留下的涟漪",
+        "lifecycle_phase": "Flourishing",
+        "cohesion_change": 0.02,
         "narrative": "两股原初能量在虚空中交汇，激荡出微弱的共鸣波纹 / Two primordial energies converge, rippling across the void",
         "outcome_type": "MUTUAL_CHANGE",
         "action_result": "意识与物质发生谐振，形态产生轻微位移与流变",
