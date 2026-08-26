@@ -1,12 +1,7 @@
 use crate::entity::Entity;
 use crate::llm::{create_llm_client_from_env, LlmClient};
 use crate::mythos::{MythosChapter, MythosEngine};
-use crate::operator::{
-    AutonomousAgencyOperator, CausalExecutor, CommunionContext, CosmicLawOperator,
-    DialogueContext, DomainResonanceOperator, IntersubjectiveDialogueOperator,
-    MindInhabitationContext, MindInhabitationOperator, MorphogenesisContext,
-    MorphogenesisOperator, PanpsychicCommunionOperator, SelfEvolutionOperator,
-};
+use crate::operator::{CausalIntervention, UniversalCausalKernel};
 use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -159,76 +154,103 @@ impl PrimordiaWorld {
         Ok(())
     }
 
-    /// 单实体自生长演化 (Autonomous Self-Evolution - Strategy Delegation)
+    /// 触发万物归一通用因果干涉 (Universal Causal Intervention)
+    pub async fn intervene(&mut self, intervention: CausalIntervention) -> Result<Value, String> {
+        UniversalCausalKernel::execute(self, intervention).await
+    }
+
+    /// 单实体自生长演化 (Autonomous Self-Evolution)
     pub async fn evolve_entity(&mut self, ent_id: &str) -> Result<Value, String> {
-        CausalExecutor::execute(self, &SelfEvolutionOperator, &ent_id.to_string()).await
+        self.intervene(CausalIntervention {
+            mode: "SELF_EVOLUTION".to_string(),
+            entities: vec![ent_id.to_string()],
+            stimulus: None,
+        })
+        .await
     }
 
-    /// 两实体碰撞、相变与共生 (Collision, Morphogenesis & Symbiosis - Strategy Delegation)
+    /// 两实体碰撞、相变与共生 (Collision, Morphogenesis & Symbiosis)
     pub async fn collide(&mut self, id_a: &str, id_b: &str) -> Result<Value, String> {
-        CausalExecutor::execute(
-            self,
-            &MorphogenesisOperator,
-            &MorphogenesisContext {
-                id_a: id_a.to_string(),
-                id_b: id_b.to_string(),
-            },
-        )
+        self.intervene(CausalIntervention {
+            mode: "MORPHOGENESIS_COLLISION".to_string(),
+            entities: vec![id_a.to_string(), id_b.to_string()],
+            stimulus: None,
+        })
         .await
     }
 
-    /// 玩家意识寄宿与意志注入 (Mind Inhabitation & Agency - Strategy Delegation)
+    /// 玩家意识寄宿与意志注入 (Mind Inhabitation & Will)
     pub async fn inhabit_and_act(&mut self, ent_id: &str, player_intent: &str) -> Result<Value, String> {
-        CausalExecutor::execute(
-            self,
-            &MindInhabitationOperator,
-            &MindInhabitationContext {
-                ent_id: ent_id.to_string(),
-                player_intent: player_intent.to_string(),
-            },
-        )
+        self.intervene(CausalIntervention {
+            mode: "MIND_INHABITATION".to_string(),
+            entities: vec![ent_id.to_string()],
+            stimulus: Some(player_intent.to_string()),
+        })
         .await
     }
 
-    /// 实体自发萌发心智意志与行动 (Autonomous Agency - Strategy Delegation)
+    /// 实体自发萌发心智意志与行动 (Autonomous Agency)
     pub async fn act_autonomously(&mut self, ent_id: &str) -> Result<Value, String> {
-        CausalExecutor::execute(self, &AutonomousAgencyOperator, &ent_id.to_string()).await
+        self.intervene(CausalIntervention {
+            mode: "AUTONOMOUS_AGENCY".to_string(),
+            entities: vec![ent_id.to_string()],
+            stimulus: None,
+        })
+        .await
     }
 
-    /// 与灵元实体神念倾听问答 (Panpsychic Communion - Strategy Delegation)
+    /// 与灵元实体神念倾听问答 (Panpsychic Communion)
     pub async fn commune_with_entity(&mut self, ent_id: &str, query: &str) -> Result<Value, String> {
-        CausalExecutor::execute(
-            self,
-            &PanpsychicCommunionOperator,
-            &CommunionContext {
-                ent_id: ent_id.to_string(),
-                player_query: query.to_string(),
-            },
-        )
+        self.intervene(CausalIntervention {
+            mode: "PANPSYCHIC_COMMUNION".to_string(),
+            entities: vec![ent_id.to_string()],
+            stimulus: Some(query.to_string()),
+        })
         .await
     }
 
-    /// 实体之间自发客体际神念交织问答 (Intersubjective Dialogue - Strategy Delegation)
+    /// 实体之间自发客体际神念交织问答 (Intersubjective Dialogue)
     pub async fn intersubjective_dialogue(&mut self, speaker_id: &str, listener_id: &str) -> Result<Value, String> {
-        CausalExecutor::execute(
-            self,
-            &IntersubjectiveDialogueOperator,
-            &DialogueContext {
-                speaker_id: speaker_id.to_string(),
-                listener_id: listener_id.to_string(),
-            },
-        )
+        self.intervene(CausalIntervention {
+            mode: "INTERSUBJECTIVE_DIALOGUE".to_string(),
+            entities: vec![speaker_id.to_string(), listener_id.to_string()],
+            stimulus: None,
+        })
         .await
     }
 
-    /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution - Strategy Delegation)
+    /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution)
     pub async fn evolve_cosmic_law(&mut self) -> Result<String, String> {
-        CausalExecutor::execute(self, &CosmicLawOperator, &()).await
+        let res = self.intervene(CausalIntervention {
+            mode: "COSMIC_LAW_SHIFT".to_string(),
+            entities: vec![],
+            stimulus: None,
+        })
+        .await?;
+
+        let new_atm = res.get("new_atmosphere")
+            .or_else(|| res.get("new_cosmic_atmosphere"))
+            .and_then(|v| v.as_str())
+            .unwrap_or(&self.cosmic_atmosphere)
+            .to_string();
+
+        Ok(new_atm)
     }
 
-    /// 激发场域集体共鸣相变 (Trigger Domain Collective Resonance - Strategy Delegation)
+    /// 激发场域集体共鸣相变 (Trigger Domain Collective Resonance)
     pub async fn trigger_domain_resonance(&mut self, domain_name: &str) -> Result<Value, String> {
-        CausalExecutor::execute(self, &DomainResonanceOperator, &domain_name.to_string()).await
+        let entities_in_domain: Vec<String> = self.entities
+            .iter()
+            .filter(|(_, ent)| ent.spatial.domain.contains(domain_name))
+            .map(|(id, _)| id.clone())
+            .collect();
+
+        self.intervene(CausalIntervention {
+            mode: "DOMAIN_RESONANCE".to_string(),
+            entities: entities_in_domain,
+            stimulus: Some(domain_name.to_string()),
+        })
+        .await
     }
 
     /// 提炼当前编年史为神话史诗 (Distill Chronicle into Mythos Chapter)

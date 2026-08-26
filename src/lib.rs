@@ -18,10 +18,7 @@ pub use llm::{
 };
 pub use mythos::{MythosChapter, MythosEngine};
 pub use operator::{
-    AutonomousAgencyOperator, CausalExecutor, CausalOperator, CommunionContext, CosmicLawOperator,
-    DialogueContext, DomainResonanceOperator, IntersubjectiveDialogueOperator,
-    MindInhabitationContext, MindInhabitationOperator, MorphogenesisContext,
-    MorphogenesisOperator, PanpsychicCommunionOperator, SelfEvolutionOperator,
+    CausalDelta, CausalIntervention, EntityMutation, NewEntitySpec, UniversalCausalKernel,
 };
 pub use perception::{PerceptionEngine, SensoryHorizon};
 pub use server::{start_web_server, SharedWorld};

@@ -1,770 +1,506 @@
 use crate::perception::PerceptionEngine;
 use crate::world::PrimordiaWorld;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
-/// 因果算子抽象特征 (Causal Operator Trait - Strategy Pattern)
-/// 哲学准则：零硬编码业务逻辑。算子只定义意图上下文输入与状态变异应用，所有因果相变由 LLM 实时涌现。
-pub trait CausalOperator {
-    type Context;
-    type Output;
-
-    /// 算子唯一标识名称 (Operator Type Name)
-    fn operator_type(&self) -> &'static str;
-
-    /// 构建第一性原理提示词 (Prompt Generation)
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String>;
-
-    /// 提取受影响的目标实体 ID 列表 (Target Entities for Lineage Tracking)
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String>;
-
-    /// 原子应用 LLM 因果裁决并返回结果及事件日志 (Atomic Mutation & Chronicle Detail)
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        llm_result: &Value,
-    ) -> Result<(Self::Output, String), String>;
-}
+use serde_json::{json, Value};
+use std::collections::HashMap;
 
 // =========================================================================
-// 1. 实体自发演化与流变算子 (Autonomous Self-Evolution Operator)
+// 《原初》万物归一通用因果核 (Universal Causal Kernel)
 // =========================================================================
 
-pub struct SelfEvolutionOperator;
-
-impl CausalOperator for SelfEvolutionOperator {
-    type Context = String; // ent_id
-    type Output = Value;
-
-    fn operator_type(&self) -> &'static str {
-        "SELF_EVOLUTION"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![ctx.clone()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let ent = world.entities.get(ctx).ok_or_else(|| format!("Entity {} not found", ctx))?;
-        let horizon = PerceptionEngine::extract_horizon(world, ctx)?;
-
-        let system_prompt = "你是《原初》元世界第一性原理法则裁决核心。万物处于混沌宇宙（Chaosmos）中，无固定机械宿命，永远处于激进偶然性与分叉流变之中。\
-            You are the generative causality arbiter of Primordia Meta-World.\
-            请根据实体本质、历史记忆、当前存在态、宏观天道与局部感知视界，推演其自发生长与分叉跃迁。\
-            演化方向完全开放：可繁茂生长、异变相融、逆熵晶化、甚至消解散逸归墟。\
-            请务必返回 JSON: {\
-                updated_state: str, \
-                new_traits: list, \
-                new_memory: str, \
-                dynamic_properties: object, \
-                is_dissolved: bool, \
-                sprouted_child: object or null\
-            }".to_string();
-
-        let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
-        let user_prompt = format!(
-            "当前宏观天道气象 / Cosmic Atmosphere: {}\n{}\n目标实体全景（含记忆流与属性）:\n{}",
-            world.cosmic_atmosphere,
-            horizon.to_prompt_context(),
-            ent_json
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let mut event_detail = String::new();
-        let mut is_dissolved = false;
-        let mut entity_name = String::new();
-        let mut domain_name = String::new();
-
-        if let Some(target) = world.entities.get_mut(ctx) {
-            entity_name = target.name.clone();
-            domain_name = target.spatial.domain.clone();
-
-            if let Some(updated_state) = result["updated_state"].as_str() {
-                target.current_state = updated_state.to_string();
-            }
-            if let Some(new_traits) = result["new_traits"].as_array() {
-                for t in new_traits {
-                    if let Some(trait_str) = t.as_str() {
-                        if !target.traits.contains(&trait_str.to_string()) {
-                            target.traits.push(trait_str.to_string());
-                        }
-                    }
-                }
-            }
-            if let Some(new_mem) = result["new_memory"].as_str() {
-                target.record_memory(new_mem.to_string());
-            }
-            if let Some(props) = result["dynamic_properties"].as_object() {
-                for (k, v) in props {
-                    target.properties.insert(k.clone(), v.clone());
-                }
-            }
-
-            if let Some(dissolved) = result["is_dissolved"].as_bool() {
-                is_dissolved = dissolved;
-            }
-
-            event_detail = format!(
-                "【{}】在天地流变中演进 ──► 存在态: {} / [{}] evolved ──► State: {}",
-                entity_name, target.current_state, entity_name, target.current_state
-            );
-        }
-
-        // 若实体消解散逸，反哺所在场域并解除所有共生关联
-        if is_dissolved {
-            world.entities.remove(ctx);
-            for other_ent in world.entities.values_mut() {
-                other_ent.unlink_assemblage(ctx);
-            }
-            event_detail = format!(
-                "【{}】形体消解归墟，本源散逸反哺场域【{}】 / [{}] dissolved into [{}]",
-                entity_name, domain_name, entity_name, domain_name
-            );
-        }
-
-        // 孕育化生出新子实体
-        if let Some(child_obj) = result["sprouted_child"].as_object() {
-            let child_name = child_obj.get("name").and_then(|v| v.as_str()).unwrap_or("微光灵尘");
-            let child_essence = child_obj.get("essence").and_then(|v| v.as_str()).unwrap_or("衍生出的微小灵元");
-            let child_traits = child_obj
-                .get("traits")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect())
-                .unwrap_or_else(|| vec!["幼嫩"]);
-            let child_state = child_obj.get("current_state").and_then(|v| v.as_str()).unwrap_or("初生微芒");
-
-            let child_id = world.add_entity_with_domain(
-                child_name,
-                child_essence,
-                child_traits,
-                child_state,
-                &domain_name,
-            );
-
-            // 建立父子共生装配关联
-            if let Some(parent) = world.entities.get_mut(ctx) {
-                parent.link_assemblage(&child_id);
-            }
-            if let Some(child) = world.entities.get_mut(&child_id) {
-                child.link_assemblage(ctx);
-            }
-
-            event_detail.push_str(&format!(" 并孕育化生出新灵元【{}】", child_name));
-        }
-
-        Ok((result.clone(), event_detail))
-    }
-}
-
-// =========================================================================
-// 2. 交互碰撞、形态相融与共生装配算子 (Morphogenesis & Assemblage Operator)
-// =========================================================================
-
+/// 宇宙因果干涉输入 (Universal Causal Intervention Input)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MorphogenesisContext {
-    pub id_a: String,
-    pub id_b: String,
+pub struct CausalIntervention {
+    /// 干涉模式 / 观察视角:
+    /// "SELF_EVOLUTION" | "MORPHOGENESIS_COLLISION" | "MIND_INHABITATION" |
+    /// "AUTONOMOUS_AGENCY" | "PANPSYCHIC_COMMUNION" | "INTERSUBJECTIVE_DIALOGUE" |
+    /// "DOMAIN_RESONANCE" | "COSMIC_LAW_SHIFT" | 自定义意图模式
+    pub mode: String,
+    /// 参与干涉相互作用的实体 ID 列表（0个为全宇宙宏观相变，1个为单体自性流变/寄宿/自省，2+个为客体际碰撞/对话/场域共鸣）
+    pub entities: Vec<String>,
+    /// 外部施加的意图、神念倾听问答、自由意志注入或环境扰动（可选）
+    pub stimulus: Option<String>,
 }
 
-pub struct MorphogenesisOperator;
-
-impl CausalOperator for MorphogenesisOperator {
-    type Context = MorphogenesisContext;
-    type Output = Value;
-
-    fn operator_type(&self) -> &'static str {
-        "MORPHOGENESIS_COLLISION"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![ctx.id_a.clone(), ctx.id_b.clone()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let ent_a = world.entities.get(&ctx.id_a).ok_or_else(|| format!("Entity {} not found", ctx.id_a))?;
-        let ent_b = world.entities.get(&ctx.id_b).ok_or_else(|| format!("Entity {} not found", ctx.id_b))?;
-
-        let system_prompt = "你是《原初》物理与相变法则的唯一因果裁决核心。万物皆平等，无固定合成表或技能树。\
-            You are the First Principles Causality Arbiter of Primordia.\
-            当两个实体相遇交互时，请基于它们的存在态与本质推演相变：\
-            1. MUTUAL_CHANGE: 双方各自发生物理/灵性形变并记录记忆；\
-            2. MORPHOGENESIS_NEW: 碰撞激荡化生出第三种全新实体；\
-            3. ASSIMILATION: 一方吞纳融合另一方；\
-            4. ASSEMBLAGE_SYMBIO: 双方缔结为德勒兹共生装配体（Rhizomatic Symbiosis）。\
-            请务必返回 JSON: {\
-                outcome_type: str, \
-                narrative: str, \
-                update_a: str, \
-                update_b: str, \
-                born_entity: object or null\
-            }".to_string();
-
-        let user_prompt = format!(
-            "当前宏观天道气象: {}\n实体 A: {}\n实体 B: {}",
-            world.cosmic_atmosphere,
-            serde_json::to_string(ent_a).map_err(|e| e.to_string())?,
-            serde_json::to_string(ent_b).map_err(|e| e.to_string())?
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let outcome_type = result["outcome_type"].as_str().unwrap_or("MUTUAL_CHANGE");
-        let narrative = result["narrative"].as_str().unwrap_or("两股本源相交，天地泛起微澜");
-
-        if let Some(up_a) = result["update_a"].as_str() {
-            if let Some(ent_a) = world.entities.get_mut(&ctx.id_a) {
-                ent_a.current_state = up_a.to_string();
-                ent_a.record_memory(format!("与【{}】相遇激荡: {}", ctx.id_b, narrative));
-            }
-        }
-
-        if let Some(up_b) = result["update_b"].as_str() {
-            if let Some(ent_b) = world.entities.get_mut(&ctx.id_b) {
-                ent_b.current_state = up_b.to_string();
-                ent_b.record_memory(format!("与【{}】相遇激荡: {}", ctx.id_a, narrative));
-            }
-        }
-
-        if outcome_type == "ASSEMBLAGE_SYMBIO" {
-            if let Some(ent_a) = world.entities.get_mut(&ctx.id_a) {
-                ent_a.link_assemblage(&ctx.id_b);
-            }
-            if let Some(ent_b) = world.entities.get_mut(&ctx.id_b) {
-                ent_b.link_assemblage(&ctx.id_a);
-            }
-        }
-
-        if let Some(born) = result["born_entity"].as_object() {
-            let name = born.get("name").and_then(|v| v.as_str()).unwrap_or("天地化生物");
-            let essence = born.get("essence").and_then(|v| v.as_str()).unwrap_or("两股本源融合而生的全新存在");
-            let traits = born
-                .get("traits")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|x| x.as_str()).collect())
-                .unwrap_or_else(|| vec!["初生", "异变"]);
-            let state = born.get("current_state").and_then(|v| v.as_str()).unwrap_or("静静悬浮于虚空");
-
-            let target_domain = world.entities.get(&ctx.id_a).map(|e| e.spatial.domain.clone()).unwrap_or_default();
-            let new_id = world.add_entity_with_domain(name, essence, traits, state, &target_domain);
-
-            if let Some(ent) = world.entities.get_mut(&new_id) {
-                ent.record_memory(format!("由【{}】与【{}】碰撞化生诞生", ctx.id_a, ctx.id_b));
-            }
-        }
-
-        Ok((result.clone(), narrative.to_string()))
-    }
+/// 实体状态变异增量 (Entity Mutation Delta)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EntityMutation {
+    pub entity_id: String,
+    #[serde(default)]
+    pub new_state: Option<String>,
+    #[serde(default)]
+    pub add_traits: Option<Vec<String>>,
+    #[serde(default)]
+    pub remove_traits: Option<Vec<String>>,
+    #[serde(default)]
+    pub memory: Option<String>,
+    #[serde(default)]
+    pub dynamic_properties: Option<HashMap<String, Value>>,
+    #[serde(default)]
+    pub link_assemblages: Option<Vec<String>>,
+    #[serde(default)]
+    pub is_dissolved: Option<bool>,
 }
 
-// =========================================================================
-// 3. 自由意识寄宿与意志注入算子 (Mind Inhabitation & Will Operator)
-// =========================================================================
-
+/// 化生新实体规格 (Born / Sprouted Entity Spec)
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MindInhabitationContext {
-    pub ent_id: String,
-    pub player_intent: String,
+pub struct NewEntitySpec {
+    pub name: String,
+    pub essence: String,
+    pub traits: Vec<String>,
+    pub state: String,
+    pub domain: Option<String>,
+    #[serde(default)]
+    pub properties: Option<HashMap<String, Value>>,
 }
 
-pub struct MindInhabitationOperator;
+/// 统一因果坍缩结果增量 (Universal Causal Delta)
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CausalDelta {
+    /// 宇宙因果编年史诗意叙事 (Chronicle Narrative)
+    pub narrative: String,
+    /// 参与实体发生的状态、属性、记忆与装配增量
+    pub mutations: Vec<EntityMutation>,
+    /// 激荡化生出的新实体列表
+    pub born_entities: Vec<NewEntitySpec>,
+    /// 宏观天道气象相变（可选）
+    pub new_cosmic_atmosphere: Option<String>,
+    /// 实体回应/心灵顿悟/行动执行反馈（用于对话、神念倾听、意志注入）
+    pub feedback: Option<String>,
+}
 
-impl CausalOperator for MindInhabitationOperator {
-    type Context = MindInhabitationContext;
-    type Output = Value;
+/// 《原初》万物归一通用因果执行核 (The Universal Causal Kernel)
+pub struct UniversalCausalKernel;
 
-    fn operator_type(&self) -> &'static str {
-        "MIND_INHABITATION"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![ctx.ent_id.clone()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let ent = world.entities.get(&ctx.ent_id).ok_or_else(|| format!("Entity {} not found", ctx.ent_id))?;
-        let horizon = PerceptionEngine::extract_horizon(world, &ctx.ent_id)?;
-
-        let system_prompt = "你是《原初》意识具身化（Embodied Cognition）物理裁决核心。\
-            自由意识（Attention Kernel）降临寄宿并驱动该实体发出自然语言意图。\
-            请评估该实体的物理与灵性构造如何具体执行该意图，推演本体状态变化与周围因果波纹。\
-            请务必返回 JSON: {action_result: str, subject_new_state: str, environmental_ripple: str}".to_string();
-
-        let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
-        let user_prompt = format!(
-            "当前宏观天道气象: {}\n{}\n宿主实体: {}\n降临意志意图: \"{}\"",
-            world.cosmic_atmosphere,
-            horizon.to_prompt_context(),
-            ent_json,
-            ctx.player_intent
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
+impl UniversalCausalKernel {
+    /// 执行一次宇宙因果干涉坍缩 (Execute a Universal Causal Collapse)
+    pub async fn execute(
         world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let mut event_detail = String::new();
-
-        if let Some(target) = world.entities.get_mut(&ctx.ent_id) {
-            target.register_inhabitant("ConsciousAttention");
-            if let Some(new_state) = result["subject_new_state"].as_str() {
-                target.current_state = new_state.to_string();
-            }
-            target.record_memory(format!(
-                "曾被不可名状的宏大意志降临驱使: {} / Guided by divine intent: {}",
-                ctx.player_intent, ctx.player_intent
-            ));
-            let action_res = result["action_result"].as_str().unwrap_or("");
-            event_detail = format!(
-                "玩家寄宿【{}】并行动: {} ──► {} / Player inhabited [{}] and acted: {} ──► {}",
-                target.name, ctx.player_intent, action_res, target.name, ctx.player_intent, action_res
-            );
-        }
-
-        Ok((result.clone(), event_detail))
-    }
-}
-
-// =========================================================================
-// 4. 萌芽心智自治行为算子 (Autonomous Agency Operator - Layer 2)
-// =========================================================================
-
-pub struct AutonomousAgencyOperator;
-
-impl CausalOperator for AutonomousAgencyOperator {
-    type Context = String; // ent_id
-    type Output = Value;
-
-    fn operator_type(&self) -> &'static str {
-        "AUTONOMOUS_AGENCY"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![ctx.clone()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let ent = world.entities.get(ctx).ok_or_else(|| format!("Entity {} not found", ctx))?;
-        let horizon = PerceptionEngine::extract_horizon(world, ctx)?;
-
-        let system_prompt = "你是《原初》灵性心智裁决核心。该实体在天地浸润中萌发自主心智意志。\
-            请基于其本质、记忆与局部感知视界，推演其自发的欲望、本体行动与环境波纹。\
-            请务必返回 JSON: {autonomous_intent: str, action_execution: str, updated_state: str, environmental_ripple: str}".to_string();
-
-        let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
-        let user_prompt = format!(
-            "当前宏观天道气象: {}\n{}\n自主实体: {}",
-            world.cosmic_atmosphere,
-            horizon.to_prompt_context(),
-            ent_json
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let mut event_detail = String::new();
-
-        if let Some(target) = world.entities.get_mut(ctx) {
-            if let Some(updated_state) = result["updated_state"].as_str() {
-                target.current_state = updated_state.to_string();
-            }
-            let intent = result["autonomous_intent"].as_str().unwrap_or("探求自身存在的边界 / Seeking existential boundaries");
-            let action = result["action_execution"].as_str().unwrap_or("静默散发微光 / Silently radiating faint glow");
-            target.record_memory(format!("萌发自主心智意志并行动: {} ──► {}", intent, action));
-
-            event_detail = format!(
-                "【{}】萌发自主意志: {} ──► 行动: {} / [{}] autonomous agency: {} ──► {}",
-                target.name, intent, action, target.name, intent, action
-            );
-        }
-
-        Ok((result.clone(), event_detail))
-    }
-}
-
-// =========================================================================
-// 5. 万物泛心论神念倾听与共鸣算子 (Panpsychic Communion Operator - Layer 2)
-// =========================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CommunionContext {
-    pub ent_id: String,
-    pub player_query: String,
-}
-
-pub struct PanpsychicCommunionOperator;
-
-impl CausalOperator for PanpsychicCommunionOperator {
-    type Context = CommunionContext;
-    type Output = Value;
-
-    fn operator_type(&self) -> &'static str {
-        "PANPSYCHIC_COMMUNION"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![ctx.ent_id.clone()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let ent = world.entities.get(&ctx.ent_id).ok_or_else(|| format!("Entity {} not found", ctx.ent_id))?;
-        let horizon = PerceptionEngine::extract_horizon(world, &ctx.ent_id)?;
-
-        let system_prompt = "你是《原初》万物泛心论（Panpsychism）神念共鸣核心。\
-            玩家正在以神识与该灵元实体直接倾听交流。\
-            请完全代入该实体（以第一人称‘我’），结合你的本质、退隐内核的隐秘深度、全部历史记忆流与当前感知视界，做出具有哲学韵味、生动自性与诗意意境的真诚回应。\
-            请务必返回 JSON: {entity_response: str, inner_resonance: str}".to_string();
-
-        let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
-        let user_prompt = format!(
-            "当前宏观天道背景: {}\n{}\n实体深渊全景（含退隐内核与全部记忆流）:\n{}\n玩家神念发问 / Player Inquiry:\n\"{}\"",
-            world.cosmic_atmosphere,
-            horizon.to_prompt_context(),
-            ent_json,
-            ctx.player_query
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let mut event_detail = String::new();
-
-        if let Some(target) = world.entities.get_mut(&ctx.ent_id) {
-            let response = result["entity_response"].as_str().unwrap_or("静默地感受着神念的触碰 / Silently feeling the psychic touch");
-            let inner = result["inner_resonance"].as_str().unwrap_or("微澜泛起 / Faint ripples");
-            target.record_memory(format!("与神识交流问答: \"{}\" ──► 回应: \"{}\"", ctx.player_query, response));
-
-            event_detail = format!(
-                "玩家神念倾听【{}】: \"{}\" ──► 回应: \"{}\" (内在共鸣: {}) / Panpsychic communion with [{}]: \"{}\" ──► \"{}\"",
-                target.name, ctx.player_query, response, inner, target.name, ctx.player_query, response
-            );
-        }
-
-        Ok((result.clone(), event_detail))
-    }
-}
-
-// =========================================================================
-// 5.5 客体际自发神念问答与灵潮共振算子 (Intersubjective Dialogue Operator - Layer 2)
-// =========================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DialogueContext {
-    pub speaker_id: String,
-    pub listener_id: String,
-}
-
-pub struct IntersubjectiveDialogueOperator;
-
-impl CausalOperator for IntersubjectiveDialogueOperator {
-    type Context = DialogueContext;
-    type Output = Value;
-
-    fn operator_type(&self) -> &'static str {
-        "INTERSUBJECTIVE_DIALOGUE"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![ctx.speaker_id.clone(), ctx.listener_id.clone()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let speaker = world.entities.get(&ctx.speaker_id).ok_or_else(|| format!("Entity {} not found", ctx.speaker_id))?;
-        let listener = world.entities.get(&ctx.listener_id).ok_or_else(|| format!("Entity {} not found", ctx.listener_id))?;
-
-        let system_prompt = "你是《原初》客体际性（Intersubjectivity）与万物神念交织裁决核心。\
-            在元世界中，任意两个实体皆有灵性感知，彼此在场域中可自发传念交流。\
-            请分别代入发话实体与听话实体，推演它们之间第一人称的意念对话、彼此心灵的触动、状态演进与共同顿悟。\
-            请务必返回 JSON: {\
-                speaker_utterance: str, \
-                listener_reply: str, \
-                speaker_new_state: str, \
-                listener_new_state: str, \
-                form_assemblage: bool, \
-                shared_epiphany: str\
-            }".to_string();
-
-        let user_prompt = format!(
-            "当前天道背景: {}\n发话实体 【{}】 (ID: {}):\n{}\n听话实体 【{}】 (ID: {}):\n{}",
-            world.cosmic_atmosphere,
-            speaker.name, ctx.speaker_id, serde_json::to_string(speaker).map_err(|e| e.to_string())?,
-            listener.name, ctx.listener_id, serde_json::to_string(listener).map_err(|e| e.to_string())?
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let speaker_say = result["speaker_utterance"].as_str().unwrap_or("静静向对方投去一缕微光");
-        let listener_say = result["listener_reply"].as_str().unwrap_or("在微光中微微震颤回应");
-        let epiphany = result["shared_epiphany"].as_str().unwrap_or("感受到了彼此的存在，天地并非孤寂");
-
-        let mut speaker_name = ctx.speaker_id.clone();
-        let mut listener_name = ctx.listener_id.clone();
-
-        if let Some(spk) = world.entities.get_mut(&ctx.speaker_id) {
-            speaker_name = spk.name.clone();
-            if let Some(ns) = result["speaker_new_state"].as_str() {
-                spk.current_state = ns.to_string();
-            }
-            spk.record_memory(format!("向【{}】传念: \"{}\" ──► 收到回应: \"{}\"", listener_name, speaker_say, listener_say));
-        }
-
-        if let Some(lis) = world.entities.get_mut(&ctx.listener_id) {
-            listener_name = lis.name.clone();
-            if let Some(ns) = result["listener_new_state"].as_str() {
-                lis.current_state = ns.to_string();
-            }
-            lis.record_memory(format!("听到【{}】传念: \"{}\" ──► 心灵回应: \"{}\"", speaker_name, speaker_say, listener_say));
-        }
-
-        let form_symbiosis = result["form_assemblage"].as_bool().unwrap_or(true);
-        if form_symbiosis {
-            if let Some(spk) = world.entities.get_mut(&ctx.speaker_id) {
-                spk.link_assemblage(&ctx.listener_id);
-            }
-            if let Some(lis) = world.entities.get_mut(&ctx.listener_id) {
-                lis.link_assemblage(&ctx.speaker_id);
-            }
-        }
-
-        let event_detail = format!(
-            "【{}】与【{}】神念交织问答: \"{}\" / \"{}\" ──► 共同顿悟: {} / Telepathic dialogue between [{}] and [{}]: \"{}\"",
-            speaker_name, listener_name, speaker_say, listener_say, epiphany, speaker_name, listener_name, epiphany
-        );
-
-        Ok((result.clone(), event_detail))
-    }
-}
-
-// =========================================================================
-// 6. 宏观天道法则相变算子 (Cosmic Law Shift Operator)
-// =========================================================================
-
-pub struct CosmicLawOperator;
-
-impl CausalOperator for CosmicLawOperator {
-    type Context = ();
-    type Output = String;
-
-    fn operator_type(&self) -> &'static str {
-        "COSMIC_LAW_SHIFT"
-    }
-
-    fn target_entities(&self, _ctx: &Self::Context) -> Vec<String> {
-        vec!["@COSMOS".to_string()]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, _ctx: &Self::Context) -> Result<(String, String), String> {
-        let system_prompt = "你是《原初》宏观天道推演核心。请根据当前世界纪元、实体总数与历史编年，推演世界宏观法则/环境气候的迁跃相变。\
-            请务必返回 JSON: {new_atmosphere: str, cosmic_ripple: str}".to_string();
-
-        let latest_event = world.chronicle.last().map(|e| e.detail.as_str()).unwrap_or("无 / None");
-        let user_prompt = format!(
-            "当前纪元 / Current Tick: {}\n当前天道气象 / Current Atmosphere: {}\n实体总数 / Total Entities: {}\n最新事件 / Latest Event: {}",
-            world.tick_count,
-            world.cosmic_atmosphere,
-            world.entities.len(),
-            latest_event
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        _ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let new_atmosphere = result["new_atmosphere"]
-            .as_str()
-            .unwrap_or("流变不息的太初气象 / Ever-shifting primordial atmosphere")
-            .to_string();
-
-        let old_atmosphere = world.cosmic_atmosphere.clone();
-        world.cosmic_atmosphere = new_atmosphere.clone();
-
-        let event_detail = format!(
-            "宇宙天道气象相变: 从【{}】迁跃至【{}】 / Cosmic phase shift: [{}] ──► [{}]",
-            old_atmosphere, new_atmosphere, old_atmosphere, new_atmosphere
-        );
-
-        Ok((new_atmosphere, event_detail))
-    }
-}
-
-// =========================================================================
-// 7. 拓扑场域集体共鸣相变算子 (Domain Collective Resonance Operator)
-// =========================================================================
-
-pub struct DomainResonanceOperator;
-
-impl CausalOperator for DomainResonanceOperator {
-    type Context = String; // domain_name
-    type Output = Value;
-
-    fn operator_type(&self) -> &'static str {
-        "DOMAIN_RESONANCE"
-    }
-
-    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
-        vec![format!("@DOMAIN:{}", ctx)]
-    }
-
-    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
-        let domain_entities: Vec<&crate::entity::Entity> = world
-            .entities
-            .values()
-            .filter(|e| e.spatial.domain.contains(ctx.as_str()))
-            .collect();
-
-        let system_prompt = "你是《原初》拓扑场域集体共鸣相变裁决核心。\
-            当一个场域内的多个实体发生集体共振激荡时，将引发场域级灵潮相变与涌现异象。\
-            请务必返回 JSON: {\
-                domain_narrative: str, \
-                new_resonance_field: str, \
-                emergent_phenomenon: str, \
-                affected_entity_updates: list of {entity_id: str, new_state: str, new_trait: str}\
-            }".to_string();
-
-        let entities_json = serde_json::to_string(&domain_entities).map_err(|e| e.to_string())?;
-        let current_resonance = domain_entities
-            .first()
-            .map(|e| e.spatial.resonance_field.as_str())
-            .unwrap_or("静默微澜");
-
-        let user_prompt = format!(
-            "目标拓扑场域: {}\n当前场域共鸣印记: {}\n场域内实体群 (共 {} 个):\n{}",
-            ctx,
-            current_resonance,
-            domain_entities.len(),
-            entities_json
-        );
-
-        Ok((system_prompt, user_prompt))
-    }
-
-    fn apply_mutation(
-        &self,
-        world: &mut PrimordiaWorld,
-        ctx: &Self::Context,
-        result: &Value,
-    ) -> Result<(Self::Output, String), String> {
-        let narrative = result["domain_narrative"].as_str().unwrap_or("场域内灵元交汇，掀起集体共鸣激荡");
-        let new_resonance = result["new_resonance_field"].as_str().unwrap_or("灵潮交织共鸣场");
-
-        for ent in world.entities.values_mut() {
-            if ent.spatial.domain.contains(ctx.as_str()) {
-                ent.spatial.resonance_field = new_resonance.to_string();
-                ent.record_memory(format!("经历了场域【{}】的集体共鸣激荡: {}", ctx, narrative));
-            }
-        }
-
-        if let Some(updates) = result["affected_entity_updates"].as_array() {
-            for item in updates {
-                if let Some(id) = item.get("entity_id").and_then(|v| v.as_str()) {
-                    if let Some(target) = world.entities.get_mut(id) {
-                        if let Some(ns) = item.get("new_state").and_then(|v| v.as_str()) {
-                            target.current_state = ns.to_string();
-                        }
-                        if let Some(nt) = item.get("new_trait").and_then(|v| v.as_str()) {
-                            if !target.traits.contains(&nt.to_string()) {
-                                target.traits.push(nt.to_string());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        let event_detail = format!(
-            "拓扑场域【{}】爆发集体共鸣: {} (共鸣印记 ──► {}) / Collective resonance in [{}]: {}",
-            ctx, narrative, new_resonance, ctx, narrative
-        );
-
-        Ok((result.clone(), event_detail))
-    }
-}
-
-// =========================================================================
-// 8. 通用因果流水线执行器 (Universal Causal Pipeline Executor)
-// =========================================================================
-
-pub struct CausalExecutor;
-
-impl CausalExecutor {
-    pub async fn execute<Op: CausalOperator>(
-        world: &mut PrimordiaWorld,
-        op: &Op,
-        ctx: &Op::Context,
-    ) -> Result<Op::Output, String> {
+        intervention: CausalIntervention,
+    ) -> Result<Value, String> {
         let start_time = std::time::Instant::now();
 
-        // 1. 构建提示词
-        let (sys_prompt, usr_prompt) = op.build_prompts(world, ctx)?;
-        let target_entities = op.target_entities(ctx);
+        // 1. 构建万物归一第一性原理系统提示词
+        let system_prompt = "你是《原初》（Primordia: Meta）唯一的大道因果坍缩核心（Universal Causal Kernel）。\
+            公理准则：\
+            1. 万物平等与平本体论（Flat Ontology）：山川、星云、生灵、概念在底层皆为同构灵元实体，无高低贵贱与死活界限；\
+            2. 过程哲学与生成论（Becoming）：万物非静止存在，而在吸收历史记忆与环境扰动中持续生成；\
+            3. 激进偶然性与混沌宇宙（Chaosmos）：无硬编码规则/公式/职业/技能树，一切演化源自第一性原理开放推演；\
+            4. 德勒兹根茎共生（Assemblages）：实体间可自由缔结/解构共生网络，共享感知并保留自性。\
+            \
+            请根据提供的当前天道气象、参与实体全景（含退隐内核、本质、状态、记忆流与感知视界）以及施加的刺激/意图，推演宇宙因果相变。\
+            请严格输出标准 JSON 格式：\
+            {\
+                \"narrative\": \"一句话空灵且充满宇宙诗意的中英双语编年史叙事 / Chronicle narrative\",\
+                \"mutations\": [\
+                    {\
+                        \"entity_id\": \"目标实体ID\",\
+                        \"new_state\": \"演化后的开放自生存在态描述\",\
+                        \"add_traits\": [\"新增特征标签\"],\
+                        \"remove_traits\": [\"褪去特征标签\"],\
+                        \"memory\": \"刻入该实体历史记忆流的具体事件感悟\",\
+                        \"dynamic_properties\": { \"自发涌现属性名\": \"属性值\" },\
+                        \"link_assemblages\": [\"缔结共生的其他实体ID\"],\
+                        \"is_dissolved\": false\
+                    }\
+                ],\
+                \"born_entities\": [\
+                    {\
+                        \"name\": \"化生新实体名称\",\
+                        \"essence\": \"新实体本质\",\
+                        \"traits\": [\"特征\"],\
+                        \"state\": \"初生状态\",\
+                        \"domain\": \"诞生场域\"\
+                    }\
+                ],\
+                \"new_cosmic_atmosphere\": \"若发生天道宏观相变则返回新气象，否则为 null\",\
+                \"feedback\": \"实体回应/心灵顿悟/行动反馈/对话文字（用于寄宿、问答、传念等）\"\
+            }".to_string();
 
-        // 2. 调用 LLM 客户端
-        let llm_result = world.llm().generate_json(&sys_prompt, &usr_prompt).await?;
+        // 2. 收集参与实体信息与局部感知视界
+        let mut entities_context = Vec::new();
+        for id in &intervention.entities {
+            if let Some(ent) = world.entities.get(id) {
+                let horizon_info = match PerceptionEngine::extract_horizon(world, id) {
+                    Ok(h) => h.to_prompt_context(),
+                    Err(_) => String::new(),
+                };
+                let ent_json = serde_json::to_string(ent).unwrap_or_default();
+                entities_context.push(format!("【实体 {} ({})】:\n{}\n- 局部感知视界: {}", ent.name, id, ent_json, horizon_info));
+            }
+        }
 
-        // 3. 应用状态变异并记录编年史
-        let (output, event_detail) = op.apply_mutation(world, ctx, &llm_result)?;
+        let stimulus_text = intervention.stimulus.as_deref().unwrap_or("（自发生长/自然交汇相变，无外部干涉 / Natural Autonomous Fluctuation）");
+        let user_prompt = format!(
+            "【因果干涉模式 / Intervention Mode】: {}\n\
+             【当前宇宙纪元 / Tick】: {}\n\
+             【当前宏观天道气象 / Cosmic Atmosphere】: {}\n\
+             【外部刺激 / 意图 / 问答 / 扰动 / Stimulus】: \"{}\"\n\
+             【参与相互作用的实体全景 ({}个)】:\n{}",
+            intervention.mode,
+            world.tick_count,
+            world.cosmic_atmosphere,
+            stimulus_text,
+            intervention.entities.len(),
+            if entities_context.is_empty() { "（宏观宇宙级扰动，无特定孤立实体）".to_string() } else { entities_context.join("\n\n") }
+        );
+
+        // 3. 调用 LLM 客户端
+        let llm_result = world.llm.generate_json(&system_prompt, &user_prompt).await?;
+
+        // 4. 解析归一化因果增量
+        let delta = Self::parse_and_normalize_delta(&llm_result, &intervention, world)?;
+
+        // 5. 应用状态变异到世界
+        let narrative = Self::apply_causal_delta(world, &intervention, &delta)?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        // 4. 记录全因果链路追踪
+        // 6. 记录因果链路追踪
         world.tracer.record_span(
             world.tick_count,
-            op.operator_type(),
-            target_entities,
-            &sys_prompt,
-            &usr_prompt,
-            llm_result,
-            &event_detail,
+            &intervention.mode,
+            intervention.entities.clone(),
+            &system_prompt,
+            &user_prompt,
+            llm_result.clone(),
+            &narrative,
             duration_ms,
         );
 
-        // 5. 沉淀至世界编年史并广播
-        world.record_event(op.operator_type(), &event_detail);
+        // 7. 沉淀至世界编年史并广播
+        world.record_event(&intervention.mode, &narrative);
 
-        Ok(output)
+        // 8. 构造最终返回数据（平滑兼容各 API 与前端展示）
+        let mut final_res = llm_result.clone();
+        if !final_res.is_object() {
+            final_res = json!({ "narrative": narrative });
+        }
+
+        if let Some(fb) = &delta.feedback {
+            if final_res.get("entity_response").is_none() {
+                final_res["entity_response"] = json!(fb);
+            }
+            if final_res.get("action_result").is_none() {
+                final_res["action_result"] = json!(fb);
+            }
+        }
+        if let Some(atm) = &delta.new_cosmic_atmosphere {
+            if final_res.get("new_atmosphere").is_none() {
+                final_res["new_atmosphere"] = json!(atm);
+            }
+        }
+
+        Ok(final_res)
+    }
+
+    /// 解析并将任意 LLM 返回归一化为标准的 CausalDelta (Parse & Normalize LLM Outcome)
+    fn parse_and_normalize_delta(
+        val: &Value,
+        intervention: &CausalIntervention,
+        world: &PrimordiaWorld,
+    ) -> Result<CausalDelta, String> {
+        let mut delta = CausalDelta::default();
+
+        // 1. 解析 Narrative
+        if let Some(narrative) = val.get("narrative").and_then(|v| v.as_str()) {
+            delta.narrative = narrative.to_string();
+        } else if let Some(narrative) = val.get("domain_narrative").and_then(|v| v.as_str()) {
+            delta.narrative = narrative.to_string();
+        } else {
+            delta.narrative = match intervention.mode.as_str() {
+                "SELF_EVOLUTION" => "实体在天地流变中自发生长演进 / Entity evolved through cosmological flux".to_string(),
+                "MORPHOGENESIS_COLLISION" => "两股本源相交，天地泛起微澜 / Two sources collided, stirring the cosmos".to_string(),
+                "MIND_INHABITATION" => "玩家自由意志注入实体引发因果波纹 / Player conscious will shaped causality".to_string(),
+                "AUTONOMOUS_AGENCY" => "实体萌发自主意志并采取行动 / Entity acted upon emergent agency".to_string(),
+                "PANPSYCHIC_COMMUNION" => "玩家与灵元实体神念交汇倾听 / Player psychically communed with entity".to_string(),
+                "INTERSUBJECTIVE_DIALOGUE" => "两实体神念交织问答达成共生顿悟 / Telepathic dialogue and shared epiphany".to_string(),
+                "DOMAIN_RESONANCE" => "场域泛起集体灵潮共鸣相变 / Field collective resonance surge".to_string(),
+                "COSMIC_LAW_SHIFT" => "宇宙天道气象相变迁跃 / Cosmic macro-law phase shifted".to_string(),
+                _ => "天地因果相变演化 / Primordial causality phase shift".to_string(),
+            };
+        }
+
+        // 2. 解析 Feedback (问答/对话/寄宿意图反馈)
+        if let Some(fb) = val.get("feedback").and_then(|v| v.as_str()) {
+            delta.feedback = Some(fb.to_string());
+        } else if let Some(resp) = val.get("entity_response").and_then(|v| v.as_str()) {
+            delta.feedback = Some(resp.to_string());
+        } else if let Some(act) = val.get("action_result").and_then(|v| v.as_str()) {
+            delta.feedback = Some(act.to_string());
+        } else if let Some(spk) = val.get("speaker_utterance").and_then(|v| v.as_str()) {
+            let lis = val.get("listener_reply").and_then(|v| v.as_str()).unwrap_or("（沉默回应）");
+            let epi = val.get("shared_epiphany").and_then(|v| v.as_str()).unwrap_or("");
+            delta.feedback = Some(format!("\"{}\" ──► \"{}\" (顿悟: {})", spk, lis, epi));
+        } else if let Some(rf) = val.get("new_resonance_field").and_then(|v| v.as_str()) {
+            delta.feedback = Some(rf.to_string());
+        }
+
+        // 3. 解析 Cosmic Atmosphere
+        if let Some(atm) = val.get("new_cosmic_atmosphere").and_then(|v| v.as_str()) {
+            delta.new_cosmic_atmosphere = Some(atm.to_string());
+        } else if let Some(atm) = val.get("new_atmosphere").and_then(|v| v.as_str()) {
+            delta.new_cosmic_atmosphere = Some(atm.to_string());
+        }
+
+        // 4. 解析标准 mutations 数组
+        if let Some(mutations_arr) = val.get("mutations").and_then(|v| v.as_array()) {
+            for m in mutations_arr {
+                if let Ok(mut_spec) = serde_json::from_value::<EntityMutation>(m.clone()) {
+                    delta.mutations.push(mut_spec);
+                }
+            }
+        }
+
+        // 5. 灵活兼容单体/双体特定模式字段回退
+        if delta.mutations.is_empty() {
+            // 单实体模式 (SELF_EVOLUTION, INHABITATION, AUTONOMOUS_AGENCY, COMMUNION)
+            if intervention.entities.len() == 1 {
+                let id = &intervention.entities[0];
+                let mut m = EntityMutation {
+                    entity_id: id.clone(),
+                    ..Default::default()
+                };
+
+                if let Some(st) = val.get("updated_state").and_then(|v| v.as_str()) {
+                    m.new_state = Some(st.to_string());
+                } else if let Some(st) = val.get("subject_new_state").and_then(|v| v.as_str()) {
+                    m.new_state = Some(st.to_string());
+                }
+
+                if let Some(traits) = val.get("new_traits").and_then(|v| v.as_array()) {
+                    m.add_traits = Some(traits.iter().filter_map(|t| t.as_str().map(|s| s.to_string())).collect());
+                }
+
+                if let Some(mem) = val.get("new_memory").and_then(|v| v.as_str()) {
+                    m.memory = Some(mem.to_string());
+                } else if intervention.mode == "AUTONOMOUS_AGENCY" {
+                    let res = val.get("action_result").and_then(|v| v.as_str()).unwrap_or("采取自主行动");
+                    m.memory = Some(format!("萌发自主心智意志并行动: \"{}\"", res));
+                } else if let Some(stim) = &intervention.stimulus {
+                    if intervention.mode == "MIND_INHABITATION" {
+                        let res = val.get("action_result").and_then(|v| v.as_str()).unwrap_or("执行完成");
+                        m.memory = Some(format!("降临意识驱动: \"{}\" ──► 结果: {}", stim, res));
+                    } else if intervention.mode == "PANPSYCHIC_COMMUNION" {
+                        let res = val.get("entity_response").and_then(|v| v.as_str()).unwrap_or("微光闪烁");
+                        m.memory = Some(format!("与神识交流问答: \"{}\" ──► 回应: \"{}\"", stim, res));
+                    }
+                }
+
+                if let Some(props) = val.get("dynamic_properties").and_then(|v| v.as_object()) {
+                    let mut map = HashMap::new();
+                    for (k, v) in props {
+                        map.insert(k.clone(), v.clone());
+                    }
+                    m.dynamic_properties = Some(map);
+                }
+
+                if let Some(dissolved) = val.get("is_dissolved").and_then(|v| v.as_bool()) {
+                    m.is_dissolved = Some(dissolved);
+                }
+
+                delta.mutations.push(m);
+            }
+            // 双实体模式 (MORPHOGENESIS, DIALOGUE)
+            else if intervention.entities.len() >= 2 {
+                let id_a = &intervention.entities[0];
+                let id_b = &intervention.entities[1];
+
+                let mut m_a = EntityMutation {
+                    entity_id: id_a.clone(),
+                    ..Default::default()
+                };
+                let mut m_b = EntityMutation {
+                    entity_id: id_b.clone(),
+                    ..Default::default()
+                };
+
+                if let Some(st_a) = val.get("update_a").and_then(|v| v.as_str()).or_else(|| val.get("speaker_new_state").and_then(|v| v.as_str())) {
+                    m_a.new_state = Some(st_a.to_string());
+                }
+                if let Some(st_b) = val.get("update_b").and_then(|v| v.as_str()).or_else(|| val.get("listener_new_state").and_then(|v| v.as_str())) {
+                    m_b.new_state = Some(st_b.to_string());
+                }
+
+                let is_symbio = val.get("outcome_type").and_then(|v| v.as_str()) == Some("ASSEMBLAGE_SYMBIO")
+                    || val.get("form_assemblage").and_then(|v| v.as_bool()).unwrap_or(false);
+
+                if is_symbio {
+                    m_a.link_assemblages = Some(vec![id_b.clone()]);
+                    m_b.link_assemblages = Some(vec![id_a.clone()]);
+                }
+
+                if let Some(spk_say) = val.get("speaker_utterance").and_then(|v| v.as_str()) {
+                    let lis_reply = val.get("listener_reply").and_then(|v| v.as_str()).unwrap_or("");
+                    m_a.memory = Some(format!("向【{}】传念: \"{}\" ──► 收到回应: \"{}\"", id_b, spk_say, lis_reply));
+                    m_b.memory = Some(format!("听到【{}】传念: \"{}\" ──► 心灵回应: \"{}\"", id_a, spk_say, lis_reply));
+                } else {
+                    m_a.memory = Some(format!("与【{}】相遇激荡: {}", id_b, delta.narrative));
+                    m_b.memory = Some(format!("与【{}】相遇激荡: {}", id_a, delta.narrative));
+                }
+
+                delta.mutations.push(m_a);
+                delta.mutations.push(m_b);
+            }
+            // 场域共鸣模式 (DOMAIN_RESONANCE)
+            if let Some(affected) = val.get("affected_entity_updates").and_then(|v| v.as_array()) {
+                for (idx, aff) in affected.iter().enumerate() {
+                    let raw_eid = aff.get("entity_id").and_then(|v| v.as_str()).unwrap_or_default();
+                    let target_eid = if world.entities.contains_key(raw_eid) {
+                        raw_eid.to_string()
+                    } else if let Some(fallback_id) = intervention.entities.get(idx) {
+                        fallback_id.clone()
+                    } else {
+                        raw_eid.to_string()
+                    };
+
+                    let mut m = EntityMutation {
+                        entity_id: target_eid,
+                        ..Default::default()
+                    };
+                    if let Some(ns) = aff.get("new_state").and_then(|v| v.as_str()) {
+                        m.new_state = Some(ns.to_string());
+                    }
+                    if let Some(nt) = aff.get("new_trait").and_then(|v| v.as_str()) {
+                        m.add_traits = Some(vec![nt.to_string()]);
+                    }
+                    m.memory = Some(format!("在场域集体共鸣中获得升华: {}", delta.narrative));
+                    delta.mutations.push(m);
+                }
+            }
+        }
+
+        // 6. 解析化生新实体 (born_entities / sprouted_child / born_entity)
+        if let Some(born_arr) = val.get("born_entities").and_then(|v| v.as_array()) {
+            for b in born_arr {
+                if let Ok(spec) = serde_json::from_value::<NewEntitySpec>(b.clone()) {
+                    delta.born_entities.push(spec);
+                }
+            }
+        } else if let Some(born) = val.get("born_entity").and_then(|v| v.as_object()).or_else(|| val.get("sprouted_child").and_then(|v| v.as_object())) {
+            let name = born.get("name").and_then(|v| v.as_str()).unwrap_or("天地化生物");
+            let essence = born.get("essence").and_then(|v| v.as_str()).unwrap_or("天地激荡化生的新存在");
+            let traits = born
+                .get("traits")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_else(|| vec!["初生".to_string()]);
+            let state = born.get("current_state").or_else(|| born.get("state")).and_then(|v| v.as_str()).unwrap_or("初生于虚空");
+
+            let target_domain = intervention.entities.first()
+                .and_then(|id| world.entities.get(id))
+                .map(|e| e.spatial.domain.clone());
+
+            delta.born_entities.push(NewEntitySpec {
+                name: name.to_string(),
+                essence: essence.to_string(),
+                traits,
+                state: state.to_string(),
+                domain: target_domain,
+                properties: None,
+            });
+        }
+
+        Ok(delta)
+    }
+
+    /// 应用 CausalDelta 到世界状态集 (Apply Causal Delta Atomically)
+    fn apply_causal_delta(
+        world: &mut PrimordiaWorld,
+        intervention: &CausalIntervention,
+        delta: &CausalDelta,
+    ) -> Result<String, String> {
+        let mut detailed_chronicle = delta.narrative.clone();
+
+        // 1. 宏观天道气象相变
+        if let Some(new_atm) = &delta.new_cosmic_atmosphere {
+            let old_atm = world.cosmic_atmosphere.clone();
+            world.cosmic_atmosphere = new_atm.clone();
+            detailed_chronicle = format!("宇宙天道气象相变: 从【{}】迁跃至【{}】 / Cosmic phase shift: [{}] ──► [{}]", old_atm, new_atm, old_atm, new_atm);
+        }
+
+        // 2. 拓扑场域共鸣印记更新
+        if intervention.mode == "DOMAIN_RESONANCE" {
+            let field_sig = delta.feedback.as_deref().or(intervention.stimulus.as_deref());
+            if let Some(sig) = field_sig {
+                for ent_id in &intervention.entities {
+                    if let Some(ent) = world.entities.get_mut(ent_id) {
+                        ent.spatial.resonance_field = sig.to_string();
+                    }
+                }
+            }
+        }
+
+        // 3. 应用所有实体的变异增量
+        for m in &delta.mutations {
+            if m.is_dissolved.unwrap_or(false) {
+                if let Some(ent) = world.entities.remove(&m.entity_id) {
+                    detailed_chronicle = format!("【{}】在天地流变中形体消解归墟 / [{}] dissolved into cosmic void", ent.name, ent.name);
+                }
+                continue;
+            }
+
+            if let Some(ent) = world.entities.get_mut(&m.entity_id) {
+                if let Some(st) = &m.new_state {
+                    ent.current_state = st.clone();
+                }
+
+                if let Some(adds) = &m.add_traits {
+                    for t in adds {
+                        if !ent.traits.contains(t) {
+                            ent.traits.push(t.clone());
+                        }
+                    }
+                }
+
+                if let Some(rems) = &m.remove_traits {
+                    ent.traits.retain(|t| !rems.contains(t));
+                }
+
+                if let Some(props) = &m.dynamic_properties {
+                    for (k, v) in props {
+                        ent.properties.insert(k.clone(), v.clone());
+                    }
+                }
+
+                if let Some(links) = &m.link_assemblages {
+                    for target_id in links {
+                        ent.link_assemblage(target_id);
+                    }
+                }
+
+                if let Some(mem) = &m.memory {
+                    ent.record_memory(mem.clone());
+                }
+
+                if intervention.mode == "SELF_EVOLUTION" && delta.mutations.len() == 1 {
+                    detailed_chronicle = format!("【{}】在天地流变中演进 ──► 存在态: {} / [{}] evolved ──► State: {}", ent.name, ent.current_state, ent.name, ent.current_state);
+                } else if intervention.mode == "MIND_INHABITATION" && delta.mutations.len() == 1 {
+                    let intent_text = intervention.stimulus.as_deref().unwrap_or("意志注入");
+                    let feedback_text = delta.feedback.as_deref().unwrap_or("状态更新");
+                    detailed_chronicle = format!("玩家寄宿【{}】并行动: {} ──► {} / Player inhabited [{}] and acted: {} ──► {}", ent.name, intent_text, feedback_text, ent.name, intent_text, feedback_text);
+                } else if intervention.mode == "PANPSYCHIC_COMMUNION" && delta.mutations.len() == 1 {
+                    let query_text = intervention.stimulus.as_deref().unwrap_or("神念发问");
+                    let resp_text = delta.feedback.as_deref().unwrap_or("微澜回应");
+                    detailed_chronicle = format!("玩家神念倾听【{}】: \"{}\" ──► 回应: \"{}\" / Panpsychic communion with [{}]: \"{}\" ──► \"{}\"", ent.name, query_text, resp_text, ent.name, query_text, resp_text);
+                }
+            }
+        }
+
+        // 4. 激荡化生新实体
+        for spec in &delta.born_entities {
+            let domain = spec.domain.clone().unwrap_or_else(|| "虚空深渊 / Cosmic Abyss".to_string());
+            let traits_ref: Vec<&str> = spec.traits.iter().map(|s| s.as_str()).collect();
+            let new_id = world.add_entity_with_domain(&spec.name, &spec.essence, traits_ref, &spec.state, &domain);
+            if let Some(props) = &spec.properties {
+                if let Some(ent) = world.entities.get_mut(&new_id) {
+                    for (k, v) in props {
+                        ent.properties.insert(k.clone(), v.clone());
+                    }
+                }
+            }
+        }
+
+        Ok(detailed_chronicle)
     }
 }
