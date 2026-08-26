@@ -49,11 +49,56 @@ pub struct TickPayload {
     pub count: Option<u64>,
 }
 
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+
+#[derive(Clone)]
+pub struct ServerState {
+    pub world: SharedWorld,
+    pub heartbeat_running: Arc<AtomicBool>,
+    pub heartbeat_interval_secs: Arc<AtomicU64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct HeartbeatTogglePayload {
+    pub is_running: bool,
+    pub interval_secs: Option<u64>,
+}
+
 use tower_http::services::ServeDir;
 
 /// 启动 Primordia Web 服务器
 pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<dyn std::error::Error>> {
     let serve_dir = ServeDir::new("web/dist").fallback(get(index_handler));
+
+    let heartbeat_running = Arc::new(AtomicBool::new(false));
+    let heartbeat_interval_secs = Arc::new(AtomicU64::new(5));
+
+    let server_state = ServerState {
+        world: world.clone(),
+        heartbeat_running: heartbeat_running.clone(),
+        heartbeat_interval_secs: heartbeat_interval_secs.clone(),
+    };
+
+    // 启动后台宇宙自演化心跳守护线程 (Autonomous Cosmic Heartbeat Daemon)
+    let bg_world = world.clone();
+    let bg_running = heartbeat_running.clone();
+    let bg_interval = heartbeat_interval_secs.clone();
+
+    tokio::spawn(async move {
+        loop {
+            let interval = bg_interval.load(Ordering::Relaxed).max(1);
+            tokio::time::sleep(tokio::time::Duration::from_secs(interval)).await;
+            if bg_running.load(Ordering::Relaxed) {
+                let mut w = bg_world.lock().await;
+                if let Err(e) = w.tick().await {
+                    eprintln!("🌌 [Heartbeat] 自治心跳推演异常: {}", e);
+                }
+                if w.tick_count > 0 && w.tick_count % 5 == 0 {
+                    let _ = w.evolve_cosmic_law().await;
+                }
+            }
+        }
+    });
 
     let app = Router::new()
         .route("/api/world/status", get(get_world_status))
@@ -67,11 +112,13 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
         .route("/api/shift_law", post(shift_cosmic_law))
         .route("/api/mythos", get(get_mythos))
         .route("/api/trace", get(get_trace))
+        .route("/api/heartbeat/status", get(get_heartbeat_status))
+        .route("/api/heartbeat/toggle", post(toggle_heartbeat))
         .route("/api/events/stream", get(sse_events_stream))
         .route("/api/snapshot", get(get_snapshot))
         .fallback_service(serve_dir)
         .layer(CorsLayer::permissive())
-        .with_state(world);
+        .with_state(server_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("=================================================================");
@@ -90,8 +137,8 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
 // REST API Handlers
 // -------------------------------------------------------------------------
 
-async fn get_world_status(State(world): State<SharedWorld>) -> impl IntoResponse {
-    let w = world.lock().await;
+async fn get_world_status(State(state): State<ServerState>) -> impl IntoResponse {
+    let w = state.world.lock().await;
     Json(json!({
         "name": w.name,
         "tick_count": w.tick_count,
@@ -102,17 +149,17 @@ async fn get_world_status(State(world): State<SharedWorld>) -> impl IntoResponse
     }))
 }
 
-async fn get_entities(State(world): State<SharedWorld>) -> impl IntoResponse {
-    let w = world.lock().await;
+async fn get_entities(State(state): State<ServerState>) -> impl IntoResponse {
+    let w = state.world.lock().await;
     let entities: Vec<_> = w.entities.values().cloned().collect();
     Json(entities)
 }
 
 async fn get_entity_detail(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
     Path(id): Path<String>,
 ) -> Result<Json<Value>, StatusCode> {
-    let w = world.lock().await;
+    let w = state.world.lock().await;
     if let Some(ent) = w.entities.get(&id) {
         Ok(Json(json!(ent)))
     } else {
@@ -121,10 +168,10 @@ async fn get_entity_detail(
 }
 
 async fn inhabit_entity(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
     Json(payload): Json<InhabitPayload>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let mut w = world.lock().await;
+    let mut w = state.world.lock().await;
     let res = w
         .inhabit_and_act(&payload.entity_id, &payload.intent)
         .await
@@ -133,10 +180,10 @@ async fn inhabit_entity(
 }
 
 async fn act_autonomously(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
     Json(payload): Json<ActPayload>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let mut w = world.lock().await;
+    let mut w = state.world.lock().await;
     let res = w
         .act_autonomously(&payload.entity_id)
         .await
@@ -145,10 +192,10 @@ async fn act_autonomously(
 }
 
 async fn collide_entities(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
     Json(payload): Json<CollidePayload>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let mut w = world.lock().await;
+    let mut w = state.world.lock().await;
     let res = w
         .collide(&payload.entity_a, &payload.entity_b)
         .await
@@ -157,10 +204,10 @@ async fn collide_entities(
 }
 
 async fn trigger_resonance(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
     Json(payload): Json<ResonatePayload>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let mut w = world.lock().await;
+    let mut w = state.world.lock().await;
     let res = w
         .trigger_domain_resonance(&payload.domain_name)
         .await
@@ -169,10 +216,10 @@ async fn trigger_resonance(
 }
 
 async fn tick_world(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
     Json(payload): Json<TickPayload>,
 ) -> Result<Json<Value>, (StatusCode, String)> {
-    let mut w = world.lock().await;
+    let mut w = state.world.lock().await;
     let count = payload.count.unwrap_or(1);
     for _ in 0..count {
         w.tick()
@@ -182,8 +229,8 @@ async fn tick_world(
     Ok(Json(json!({ "status": "ok", "current_tick": w.tick_count })))
 }
 
-async fn shift_cosmic_law(State(world): State<SharedWorld>) -> Result<Json<Value>, (StatusCode, String)> {
-    let mut w = world.lock().await;
+async fn shift_cosmic_law(State(state): State<ServerState>) -> Result<Json<Value>, (StatusCode, String)> {
+    let mut w = state.world.lock().await;
     let res = w
         .evolve_cosmic_law()
         .await
@@ -191,8 +238,8 @@ async fn shift_cosmic_law(State(world): State<SharedWorld>) -> Result<Json<Value
     Ok(Json(json!({ "new_atmosphere": res })))
 }
 
-async fn get_mythos(State(world): State<SharedWorld>) -> Result<Json<Value>, (StatusCode, String)> {
-    let w = world.lock().await;
+async fn get_mythos(State(state): State<ServerState>) -> Result<Json<Value>, (StatusCode, String)> {
+    let w = state.world.lock().await;
     let mythos = w
         .distill_mythos()
         .await
@@ -200,19 +247,41 @@ async fn get_mythos(State(world): State<SharedWorld>) -> Result<Json<Value>, (St
     Ok(Json(json!(mythos)))
 }
 
-async fn get_trace(State(world): State<SharedWorld>) -> impl IntoResponse {
-    let w = world.lock().await;
+async fn get_trace(State(state): State<ServerState>) -> impl IntoResponse {
+    let w = state.world.lock().await;
     Json(json!({
         "summary": w.tracer.summary(),
         "spans": w.tracer.spans
     }))
 }
 
+async fn get_heartbeat_status(State(state): State<ServerState>) -> impl IntoResponse {
+    Json(json!({
+        "is_running": state.heartbeat_running.load(Ordering::Relaxed),
+        "interval_secs": state.heartbeat_interval_secs.load(Ordering::Relaxed)
+    }))
+}
+
+async fn toggle_heartbeat(
+    State(state): State<ServerState>,
+    Json(payload): Json<HeartbeatTogglePayload>,
+) -> impl IntoResponse {
+    state.heartbeat_running.store(payload.is_running, Ordering::Relaxed);
+    if let Some(secs) = payload.interval_secs {
+        state.heartbeat_interval_secs.store(secs.max(1), Ordering::Relaxed);
+    }
+    Json(json!({
+        "status": "ok",
+        "is_running": state.heartbeat_running.load(Ordering::Relaxed),
+        "interval_secs": state.heartbeat_interval_secs.load(Ordering::Relaxed)
+    }))
+}
+
 async fn sse_events_stream(
-    State(world): State<SharedWorld>,
+    State(state): State<ServerState>,
 ) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
     let rx = {
-        let w = world.lock().await;
+        let w = state.world.lock().await;
         w.subscribe_events()
     };
 
@@ -229,8 +298,8 @@ async fn sse_events_stream(
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
-async fn get_snapshot(State(world): State<SharedWorld>) -> Result<Json<Value>, (StatusCode, String)> {
-    let w = world.lock().await;
+async fn get_snapshot(State(state): State<ServerState>) -> Result<Json<Value>, (StatusCode, String)> {
+    let w = state.world.lock().await;
     let json_str = w
         .export_snapshot_json()
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;

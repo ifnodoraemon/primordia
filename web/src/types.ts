@@ -22,6 +22,7 @@ export interface Entity {
   cohesion: number;
   memory_stream: string[];
   assemblages: string[];
+  active_inhabitants: string[];
   born_at_tick: number;
 }
 

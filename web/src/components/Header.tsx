@@ -1,14 +1,22 @@
 import React from 'react';
 import { WorldStatus } from '../types';
-import { Sparkles, Activity, Globe, BookOpen, Layers } from 'lucide-react';
+import { Sparkles, Activity, Globe, BookOpen, Layers, Play, Pause } from 'lucide-react';
 
 interface HeaderProps {
   status: WorldStatus | null;
+  isHeartbeatRunning: boolean;
+  onToggleHeartbeat: () => void;
   onOpenMythos: () => void;
   onOpenTrace: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ status, onOpenMythos, onOpenTrace }) => {
+export const Header: React.FC<HeaderProps> = ({
+  status,
+  isHeartbeatRunning,
+  onToggleHeartbeat,
+  onOpenMythos,
+  onOpenTrace,
+}) => {
   return (
     <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50">
       <div className="flex items-center gap-3">
@@ -23,7 +31,30 @@ export const Header: React.FC<HeaderProps> = ({ status, onOpenMythos, onOpenTrac
         </span>
       </div>
 
-      <div className="flex items-center gap-4 text-xs">
+      <div className="flex items-center gap-3 text-xs">
+        {/* 宇宙自演化自治心跳开关 */}
+        <button
+          onClick={onToggleHeartbeat}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium transition-all border cursor-pointer ${
+            isHeartbeatRunning
+              ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500 shadow-sm shadow-emerald-900/50'
+              : 'bg-slate-950 text-slate-400 border-slate-800 hover:border-slate-700'
+          }`}
+        >
+          {isHeartbeatRunning ? (
+            <>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <Pause className="w-3.5 h-3.5 text-emerald-400" />
+              <span>宇宙心跳: 自动演化中 (5s)</span>
+            </>
+          ) : (
+            <>
+              <Play className="w-3.5 h-3.5 text-slate-400" />
+              <span>启动宇宙自演化心跳</span>
+            </>
+          )}
+        </button>
+
         <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-full">
           <Activity className="w-3.5 h-3.5 text-emerald-400" />
           <span className="text-slate-400">纪元 / Epoch:</span>

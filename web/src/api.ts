@@ -87,3 +87,19 @@ export async function fetchTrace(): Promise<TraceData> {
   if (!res.ok) throw new Error(`Fetch trace failed: ${res.statusText}`);
   return res.json();
 }
+
+export async function fetchHeartbeatStatus(): Promise<{ is_running: boolean; interval_secs: number }> {
+  const res = await fetch(`${API_BASE}/heartbeat/status`);
+  if (!res.ok) throw new Error(`Fetch heartbeat status failed: ${res.statusText}`);
+  return res.json();
+}
+
+export async function toggleHeartbeat(isRunning: boolean, intervalSecs?: number): Promise<{ is_running: boolean; interval_secs: number }> {
+  const res = await fetch(`${API_BASE}/heartbeat/toggle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_running: isRunning, interval_secs: intervalSecs }),
+  });
+  if (!res.ok) throw new Error(`Toggle heartbeat failed: ${await res.text()}`);
+  return res.json();
+}

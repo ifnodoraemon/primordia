@@ -282,7 +282,23 @@ export const CosmicRenderer: React.FC<CosmicRendererProps> = ({
       ringMesh.rotation.x = Math.PI / 2;
       group.add(ringMesh);
 
-      // 3. Text Billboard Sprite for Entity Name
+      // 3. Awakened Consciousness Crown (觉知降临光冕)
+      if (ent.active_inhabitants && ent.active_inhabitants.length > 0) {
+        const crownGeo = new THREE.TorusGeometry(3.6, 0.4, 16, 48);
+        const crownMat = new THREE.MeshStandardMaterial({
+          color: 0xc084fc,
+          emissive: 0xc084fc,
+          emissiveIntensity: 1.5,
+          roughness: 0.1,
+          metalness: 0.8,
+        });
+        const crownMesh = new THREE.Mesh(crownGeo, crownMat);
+        crownMesh.position.set(0, 3.8, 0);
+        crownMesh.rotation.x = Math.PI / 3;
+        group.add(crownMesh);
+      }
+
+      // 4. Text Billboard Sprite for Entity Name
       const canvas = document.createElement('canvas');
       canvas.width = 256;
       canvas.height = 64;
@@ -297,7 +313,8 @@ export const CosmicRenderer: React.FC<CosmicRendererProps> = ({
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 22px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(ent.name.slice(0, 10), 128, 40);
+        const inhabitTag = ent.active_inhabitants && ent.active_inhabitants.length > 0 ? ' ✨' : '';
+        ctx.fillText(`${ent.name.slice(0, 8)}${inhabitTag}`, 128, 40);
       }
       const texture = new THREE.CanvasTexture(canvas);
       const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });

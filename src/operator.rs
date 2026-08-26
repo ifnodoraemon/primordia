@@ -302,6 +302,7 @@ impl CausalOperator for MindInhabitationOperator {
         let mut event_detail = String::new();
 
         if let Some(target) = world.entities.get_mut(&ctx.ent_id) {
+            target.register_inhabitant("ConsciousAttention");
             if let Some(new_state) = result["subject_new_state"].as_str() {
                 target.current_state = new_state.to_string();
             }

@@ -82,6 +82,9 @@ pub struct Entity {
     pub memory_stream: Vec<String>,
     /// 德勒兹哲学：共生装配体关系列表 (Assemblages & Rhizomatic Symbiosis)
     pub assemblages: Vec<String>,
+    /// 当前寄宿该实体的自由意识/玩家算子列表 (Active Inhabitants / Observer Kernels)
+    #[serde(default)]
+    pub active_inhabitants: Vec<String>,
     pub born_at_tick: u64,
 }
 
@@ -106,6 +109,7 @@ impl Entity {
             cohesion: 1.0,
             memory_stream: vec![format!("诞生于纪元第 {} 周期 / Formed at Epoch {}", born_tick, born_tick)],
             assemblages: Vec::new(),
+            active_inhabitants: Vec::new(),
             born_at_tick: born_tick,
         }
     }
@@ -135,12 +139,25 @@ impl Entity {
             cohesion,
             memory_stream: vec![format!("诞生于纪元第 {} 周期 / Formed at Epoch {}", born_tick, born_tick)],
             assemblages: Vec::new(),
+            active_inhabitants: Vec::new(),
             born_at_tick: born_tick,
         }
     }
 
     pub fn record_memory(&mut self, memory: String) {
         self.memory_stream.push(memory);
+    }
+
+    /// 注册意识寄宿 (Register Inhabitant Attention Kernel)
+    pub fn register_inhabitant(&mut self, observer_id: &str) {
+        if !self.active_inhabitants.contains(&observer_id.to_string()) {
+            self.active_inhabitants.push(observer_id.to_string());
+        }
+    }
+
+    /// 抽离意识寄宿 (Depart Inhabitation)
+    pub fn depart_inhabitant(&mut self, observer_id: &str) {
+        self.active_inhabitants.retain(|id| id != observer_id);
     }
 
     /// 建立共生装配关系 (Attach to an Assemblage)
@@ -157,11 +174,18 @@ impl Entity {
 
     /// 对外辐射的表象界面（面向客体交互时的感官界面 / Sensual Interface）
     pub fn sensory_manifestation(&self) -> String {
+        let inhabitation_tag = if self.active_inhabitants.is_empty() {
+            String::new()
+        } else {
+            format!(" [觉知寄宿: {}]", self.active_inhabitants.join(", "))
+        };
+
         format!(
-            "【{}】[生命周期: {} | 凝聚度: {:.2}] (特征: {}; 场域: {}; 状态: {})",
+            "【{}】[生命周期: {} | 凝聚度: {:.2}]{} (特征: {}; 场域: {}; 状态: {})",
             self.name,
             self.lifecycle.as_str(),
             self.cohesion,
+            inhabitation_tag,
             self.traits.join(", "),
             self.spatial.domain,
             self.current_state

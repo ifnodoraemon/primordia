@@ -1,6 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Entity, MythosChapter, TraceData, WorldStatus } from './types';
-import { fetchEntities, fetchMythos, fetchTrace, fetchWorldStatus } from './api';
+import {
+  fetchEntities,
+  fetchHeartbeatStatus,
+  fetchMythos,
+  fetchTrace,
+  fetchWorldStatus,
+  toggleHeartbeat,
+} from './api';
 import { Header } from './components/Header';
 import { CosmicRenderer } from './components/CosmicRenderer';
 import { CausalityDeck } from './components/CausalityDeck';
@@ -15,17 +22,20 @@ export const App: React.FC = () => {
   const [selectedEntity, setSelectedEntity] = useState<Entity | null>(null);
   const [mythos, setMythos] = useState<MythosChapter | null>(null);
   const [trace, setTrace] = useState<TraceData | null>(null);
+  const [isHeartbeatRunning, setIsHeartbeatRunning] = useState(false);
   const [isMythosOpen, setIsMythosOpen] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(false);
 
   const refreshWorld = useCallback(async () => {
     try {
-      const [statusData, entitiesData] = await Promise.all([
+      const [statusData, entitiesData, hbData] = await Promise.all([
         fetchWorldStatus(),
         fetchEntities(),
+        fetchHeartbeatStatus(),
       ]);
       setStatus(statusData);
       setEntities(entitiesData);
+      setIsHeartbeatRunning(hbData.is_running);
 
       // Keep selected entity updated
       if (selectedEntity) {
@@ -36,6 +46,15 @@ export const App: React.FC = () => {
       console.error('Failed to sync world:', err);
     }
   }, [selectedEntity]);
+
+  const handleToggleHeartbeat = async () => {
+    try {
+      const res = await toggleHeartbeat(!isHeartbeatRunning, 5);
+      setIsHeartbeatRunning(res.is_running);
+    } catch (e: any) {
+      alert(`切换自演化心跳失败: ${e.message}`);
+    }
+  };
 
   useEffect(() => {
     refreshWorld();
@@ -100,6 +119,8 @@ export const App: React.FC = () => {
     <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans">
       <Header
         status={status}
+        isHeartbeatRunning={isHeartbeatRunning}
+        onToggleHeartbeat={handleToggleHeartbeat}
         onOpenMythos={handleOpenMythos}
         onOpenTrace={handleOpenTrace}
       />
