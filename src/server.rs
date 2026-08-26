@@ -49,6 +49,21 @@ pub struct TickPayload {
     pub count: Option<u64>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct CreateEntityPayload {
+    pub name: String,
+    pub essence: String,
+    pub traits: Vec<String>,
+    pub state: String,
+    pub domain: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CommunePayload {
+    pub entity_id: String,
+    pub query: String,
+}
+
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 #[derive(Clone)]
@@ -102,9 +117,10 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
 
     let app = Router::new()
         .route("/api/world/status", get(get_world_status))
-        .route("/api/entities", get(get_entities))
+        .route("/api/entities", get(get_entities).post(create_entity))
         .route("/api/entities/:id", get(get_entity_detail))
         .route("/api/inhabit", post(inhabit_entity))
+        .route("/api/commune", post(commune_entity))
         .route("/api/act", post(act_autonomously))
         .route("/api/collide", post(collide_entities))
         .route("/api/resonate", post(trigger_resonance))
@@ -167,6 +183,18 @@ async fn get_entity_detail(
     }
 }
 
+async fn create_entity(
+    State(state): State<ServerState>,
+    Json(payload): Json<CreateEntityPayload>,
+) -> impl IntoResponse {
+    let mut w = state.world.lock().await;
+    let traits_slice: Vec<&str> = payload.traits.iter().map(|s| s.as_str()).collect();
+    let domain = payload.domain.as_deref().unwrap_or("原初灵虚界 / Primordial Ethereal Domain");
+    let id = w.add_entity_with_domain(&payload.name, &payload.essence, traits_slice, &payload.state, domain);
+    let ent = w.entities.get(&id).cloned();
+    Json(json!({ "status": "created", "id": id, "entity": ent }))
+}
+
 async fn inhabit_entity(
     State(state): State<ServerState>,
     Json(payload): Json<InhabitPayload>,
@@ -174,6 +202,18 @@ async fn inhabit_entity(
     let mut w = state.world.lock().await;
     let res = w
         .inhabit_and_act(&payload.entity_id, &payload.intent)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(res))
+}
+
+async fn commune_entity(
+    State(state): State<ServerState>,
+    Json(payload): Json<CommunePayload>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    let mut w = state.world.lock().await;
+    let res = w
+        .commune_with_entity(&payload.entity_id, &payload.query)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(res))

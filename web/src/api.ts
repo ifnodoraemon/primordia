@@ -103,3 +103,29 @@ export async function toggleHeartbeat(isRunning: boolean, intervalSecs?: number)
   if (!res.ok) throw new Error(`Toggle heartbeat failed: ${await res.text()}`);
   return res.json();
 }
+
+export async function triggerCommunion(entityId: string, query: string): Promise<{ entity_response: string; inner_resonance: string }> {
+  const res = await fetch(`${API_BASE}/commune`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entity_id: entityId, query }),
+  });
+  if (!res.ok) throw new Error(`Communion failed: ${await res.text()}`);
+  return res.json();
+}
+
+export async function triggerGenesisEntity(payload: {
+  name: string;
+  essence: string;
+  traits: string[];
+  state: string;
+  domain?: string;
+}): Promise<any> {
+  const res = await fetch(`${API_BASE}/entities`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`Genesis failed: ${await res.text()}`);
+  return res.json();
+}

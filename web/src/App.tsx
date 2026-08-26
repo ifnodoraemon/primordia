@@ -157,6 +157,7 @@ export const App: React.FC = () => {
             <EntityInspector
               entity={selectedEntity}
               onSelectPartner={handleSelectPartner}
+              onRefresh={refreshWorld}
             />
           </div>
         </div>

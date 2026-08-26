@@ -2,9 +2,10 @@ use crate::entity::Entity;
 use crate::llm::{create_llm_client_from_env, LlmClient};
 use crate::mythos::{MythosChapter, MythosEngine};
 use crate::operator::{
-    AutonomousAgencyOperator, CausalExecutor, CosmicLawOperator, DomainResonanceOperator,
-    MindInhabitationContext, MindInhabitationOperator, MorphogenesisContext,
-    MorphogenesisOperator, SelfEvolutionOperator,
+    AutonomousAgencyOperator, CausalExecutor, CommunionContext, CosmicLawOperator,
+    DomainResonanceOperator, MindInhabitationContext, MindInhabitationOperator,
+    MorphogenesisContext, MorphogenesisOperator, PanpsychicCommunionOperator,
+    SelfEvolutionOperator,
 };
 use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
@@ -192,6 +193,19 @@ impl PrimordiaWorld {
     /// 实体自发萌发心智意志与行动 (Autonomous Agency - Strategy Delegation)
     pub async fn act_autonomously(&mut self, ent_id: &str) -> Result<Value, String> {
         CausalExecutor::execute(self, &AutonomousAgencyOperator, &ent_id.to_string()).await
+    }
+
+    /// 与灵元实体神念倾听问答 (Panpsychic Communion - Strategy Delegation)
+    pub async fn commune_with_entity(&mut self, ent_id: &str, query: &str) -> Result<Value, String> {
+        CausalExecutor::execute(
+            self,
+            &PanpsychicCommunionOperator,
+            &CommunionContext {
+                ent_id: ent_id.to_string(),
+                player_query: query.to_string(),
+            },
+        )
+        .await
     }
 
     /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution - Strategy Delegation)

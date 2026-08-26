@@ -223,3 +223,23 @@ async fn test_domain_resonance_and_mythos_distillation() {
     assert_eq!(chapter.title, "绝壁雷潮神话篇 / Chapter of Cliff Thunderstorm");
     assert!(chapter.poetic_epic.contains("雷火撕裂太初虚空"));
 }
+
+#[tokio::test]
+async fn test_panpsychic_communion_and_spawning() {
+    let mock_resp = serde_json::json!({
+        "entity_response": "我感受到了星光在体内晶化的低鸣，岁月未曾将我遗忘。",
+        "inner_resonance": "磁暴微澜谐振"
+    });
+
+    let mock_llm = Arc::new(MockLlmClient { return_val: mock_resp });
+    let mut world = PrimordiaWorld::with_llm("神念倾听测试世界", mock_llm);
+
+    let id = world.add_entity_with_domain("星髓奇石", "星光灵石", vec!["微光"], "静止", "太虚星海");
+
+    let commune_res = world.commune_with_entity(&id, "你在漫长的岁月中感受到了什么？").await;
+    assert!(commune_res.is_ok());
+
+    let ent = world.entities.get(&id).unwrap();
+    assert!(ent.memory_stream.iter().any(|m| m.contains("你在漫长的岁月中感受到了什么？")));
+    assert!(world.chronicle.iter().any(|e| e.event_type == "PANPSYCHIC_COMMUNION"));
+}

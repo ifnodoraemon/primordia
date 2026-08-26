@@ -1,5 +1,6 @@
 use crate::perception::PerceptionEngine;
 use crate::world::PrimordiaWorld;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// 因果算子抽象特征 (Causal Operator Trait - Strategy Pattern)
@@ -378,6 +379,74 @@ impl CausalOperator for AutonomousAgencyOperator {
             event_detail = format!(
                 "【{}】萌发自主意志: {} ──► 行动: {} / [{}] autonomous agency: {} ──► {}",
                 target.name, intent, action, target.name, intent, action
+            );
+        }
+
+        Ok((result.clone(), event_detail))
+    }
+}
+
+// =========================================================================
+// 4.5 万物泛心论神念倾听与共鸣算子 (Panpsychic Communion Operator - Layer 2)
+// =========================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommunionContext {
+    pub ent_id: String,
+    pub player_query: String,
+}
+
+pub struct PanpsychicCommunionOperator;
+
+impl CausalOperator for PanpsychicCommunionOperator {
+    type Context = CommunionContext;
+    type Output = Value;
+
+    fn operator_type(&self) -> &'static str {
+        "PANPSYCHIC_COMMUNION"
+    }
+
+    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
+        vec![ctx.ent_id.clone()]
+    }
+
+    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
+        let ent = world.entities.get(&ctx.ent_id).ok_or_else(|| format!("Entity {} not found", ctx.ent_id))?;
+        let horizon = PerceptionEngine::extract_horizon(world, &ctx.ent_id)?;
+
+        let system_prompt = "你是《原初》万物泛心论（Panpsychism）神念共鸣核心。\
+            玩家正在以神识与该灵元实体直接倾听交流。\
+            请完全代入该实体（以第一人称‘我’），结合你的本质、退隐内核的隐秘深度、全部历史记忆流与当前感知视界，做出具有哲学韵味、生动自性与诗意意境的真诚回应。\
+            请务必返回 JSON: {entity_response: str, inner_resonance: str}".to_string();
+
+        let ent_json = serde_json::to_string(ent).map_err(|e| e.to_string())?;
+        let user_prompt = format!(
+            "当前宏观天道背景: {}\n{}\n实体深渊全景（含退隐内核与全部记忆流）:\n{}\n玩家神念发问 / Player Inquiry:\n\"{}\"",
+            world.cosmic_atmosphere,
+            horizon.to_prompt_context(),
+            ent_json,
+            ctx.player_query
+        );
+
+        Ok((system_prompt, user_prompt))
+    }
+
+    fn apply_mutation(
+        &self,
+        world: &mut PrimordiaWorld,
+        ctx: &Self::Context,
+        result: &Value,
+    ) -> Result<(Self::Output, String), String> {
+        let mut event_detail = String::new();
+
+        if let Some(target) = world.entities.get_mut(&ctx.ent_id) {
+            let response = result["entity_response"].as_str().unwrap_or("静默地感受着神念的触碰 / Silently feeling the psychic touch");
+            let inner = result["inner_resonance"].as_str().unwrap_or("微澜泛起 / Faint ripples");
+            target.record_memory(format!("与神识交流问答: \"{}\" ──► 回应: \"{}\"", ctx.player_query, response));
+
+            event_detail = format!(
+                "玩家神念倾听【{}】: \"{}\" ──► 回应: \"{}\" (内在共鸣: {}) / Panpsychic communion with [{}]: \"{}\" ──► \"{}\"",
+                target.name, ctx.player_query, response, inner, target.name, ctx.player_query, response
             );
         }
 

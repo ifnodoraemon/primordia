@@ -1,22 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Entity } from '../types';
-import { Shield, MapPin, Eye, Sparkles, Network } from 'lucide-react';
+import { triggerCommunion } from '../api';
+import { Shield, MapPin, Eye, Sparkles, Network, MessageSquare, Send } from 'lucide-react';
 
 interface EntityInspectorProps {
   entity: Entity | null;
   onSelectPartner?: (partnerId: string) => void;
+  onRefresh?: () => void;
 }
 
-export const EntityInspector: React.FC<EntityInspectorProps> = ({ entity, onSelectPartner }) => {
+export const EntityInspector: React.FC<EntityInspectorProps> = ({
+  entity,
+  onSelectPartner,
+  onRefresh,
+}) => {
+  const [communeQuery, setCommuneQuery] = useState('');
+  const [communeLoading, setCommuneLoading] = useState(false);
+  const [lastCommuneReply, setLastCommuneReply] = useState<{ response: string; inner: string } | null>(null);
+
   if (!entity) {
     return (
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center text-center text-slate-500 h-64 text-xs">
         <Sparkles className="w-8 h-8 text-slate-700 mb-2 animate-pulse" />
         <p>在 3D 宇宙图谱或卡片列表中点击灵元实体</p>
-        <p className="mt-1 text-slate-600">以深入剖析其面向对象本体论（OOO）退隐内核与历史记忆</p>
+        <p className="mt-1 text-slate-600">以深入剖析其面向对象本体论（OOO）退隐内核、神念对话与历史记忆</p>
       </div>
     );
   }
+
+  const handleCommune = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!communeQuery.trim()) return;
+
+    setCommuneLoading(true);
+    try {
+      const res = await triggerCommunion(entity.id, communeQuery.trim());
+      setLastCommuneReply({ response: res.entity_response, inner: res.inner_resonance });
+      setCommuneQuery('');
+      if (onRefresh) onRefresh();
+    } catch (err: any) {
+      alert(`神念倾听失败: ${err.message}`);
+    } finally {
+      setCommuneLoading(false);
+    }
+  };
 
   let phaseColor = 'bg-emerald-950/60 text-emerald-300 border-emerald-800';
   const phase = (entity.lifecycle || '').toLowerCase();
@@ -29,7 +56,7 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({ entity, onSele
   }
 
   return (
-    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col gap-3 text-xs">
+    <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col gap-3 text-xs overflow-y-auto max-h-[460px]">
       <div className="flex justify-between items-start pb-2 border-b border-slate-800">
         <div>
           <h2 className="text-sm font-bold text-slate-100 flex items-center gap-2">
@@ -37,6 +64,11 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({ entity, onSele
             <span className="text-[10px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
               {entity.id}
             </span>
+            {entity.active_inhabitants && entity.active_inhabitants.length > 0 && (
+              <span className="text-[10px] text-purple-400 bg-purple-950/80 border border-purple-800 px-1.5 py-0.5 rounded-full animate-pulse">
+                ✨ 已觉醒
+              </span>
+            )}
           </h2>
           <p className="text-[11px] text-slate-400 mt-0.5 italic">{entity.essence}</p>
         </div>
@@ -77,6 +109,42 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({ entity, onSele
         </p>
       </div>
 
+      {/* 🗣️ 泛心论神念倾听问答 (Panpsychic Communion) */}
+      <div className="bg-slate-950/90 border border-cyan-950 p-2.5 rounded-lg flex flex-col gap-2">
+        <div className="text-[11px] font-semibold text-cyan-400 flex items-center gap-1.5">
+          <MessageSquare className="w-3 h-3 text-cyan-400" />
+          <span>神念倾听与问答 / Panpsychic Communion:</span>
+        </div>
+
+        {lastCommuneReply && (
+          <div className="bg-cyan-950/30 border-l-2 border-cyan-500 p-2 rounded text-[11px] text-cyan-200 italic leading-relaxed">
+            "{lastCommuneReply.response}"
+            <div className="text-[10px] text-cyan-400/70 not-italic mt-1 font-mono">
+              [内在共鸣: {lastCommuneReply.inner}]
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleCommune} className="flex gap-1.5">
+          <input
+            type="text"
+            value={communeQuery}
+            onChange={(e) => setCommuneQuery(e.target.value)}
+            placeholder={`以神念询问【${entity.name}】（例如：你在想什么？/ 感受到了什么？）`}
+            disabled={communeLoading}
+            className="flex-1 bg-slate-900 border border-slate-800 rounded px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+          />
+          <button
+            type="submit"
+            disabled={communeLoading || !communeQuery.trim()}
+            className="bg-cyan-700 hover:bg-cyan-600 disabled:opacity-40 text-white px-2.5 py-1 rounded text-xs flex items-center gap-1 cursor-pointer"
+          >
+            <Send className="w-3 h-3" />
+            <span>{communeLoading ? '倾听中…' : '传念'}</span>
+          </button>
+        </form>
+      </div>
+
       {/* 特征列表 */}
       <div>
         <span className="text-slate-400 text-[11px]">本征特征 / Traits:</span>
@@ -113,7 +181,7 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({ entity, onSele
       {/* 历史记忆流 */}
       <div className="flex flex-col gap-1 mt-1">
         <span className="text-slate-400 text-[11px]">历史记忆流 / Memory Stream ({entity.memory_stream?.length || 0} 条):</span>
-        <div className="max-h-28 overflow-y-auto space-y-1 bg-slate-950/90 p-2 rounded border border-slate-800 text-[10px] font-mono text-slate-400">
+        <div className="max-h-24 overflow-y-auto space-y-1 bg-slate-950/90 p-2 rounded border border-slate-800 text-[10px] font-mono text-slate-400">
           {(entity.memory_stream || []).slice().reverse().map((mem, idx) => (
             <div key={idx} className="border-b border-slate-900 pb-0.5 last:border-none">
               • {mem}
