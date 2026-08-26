@@ -136,7 +136,7 @@ impl CausalOperator for SelfEvolutionOperator {
 
         // 如果实体彻底解体归墟，解除共生装配关联
         if is_dissolved {
-            for (_, other) in world.entities.iter_mut() {
+            for other in world.entities.values_mut() {
                 other.unlink_assemblage(ctx);
             }
             let nourishment = result["domain_nourishment"].as_str().unwrap_or("沉淀下微弱的灵性尘埃，滋养周遭万物 / Precipitaded ethereal stardust, nourishing surroundings");
@@ -498,7 +498,7 @@ impl CausalOperator for DomainResonanceOperator {
         let phenomenon = result["emergent_phenomenon"].as_str().unwrap_or("天地异象 / Numina Manifestation");
 
         // 更新场域内实体的共鸣场与状态
-        for (_, ent) in world.entities.iter_mut() {
+        for ent in world.entities.values_mut() {
             if &ent.spatial.domain == domain_name {
                 ent.spatial.resonance_field = new_resonance.to_string();
             }

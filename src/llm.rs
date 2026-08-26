@@ -26,9 +26,9 @@ pub enum LlmProtocol {
 fn parse_json_from_llm_text(text: &str) -> Result<Value, String> {
     let trimmed = text.trim();
     let cleaned = if trimmed.starts_with("```json") && trimmed.ends_with("```") {
-        &trimmed[7..trimmed.len() - 3].trim()
+        trimmed[7..trimmed.len() - 3].trim()
     } else if trimmed.starts_with("```") && trimmed.ends_with("```") {
-        &trimmed[3..trimmed.len() - 3].trim()
+        trimmed[3..trimmed.len() - 3].trim()
     } else {
         trimmed
     };

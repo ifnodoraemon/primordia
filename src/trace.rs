@@ -31,6 +31,7 @@ impl CausalityTracer {
     }
 
     /// 记录一个已完成的因果推演 Span
+    #[allow(clippy::too_many_arguments)]
     pub fn record_span(
         &mut self,
         tick: u64,
