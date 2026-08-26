@@ -18,6 +18,7 @@ import { EntityInspector } from './components/EntityInspector';
 import { ChronicleStream } from './components/ChronicleStream';
 import { MythosModal } from './components/MythosModal';
 import { TraceDrawer } from './components/TraceDrawer';
+import { HarnessModal } from './components/HarnessModal';
 
 export const App: React.FC = () => {
   const [status, setStatus] = useState<WorldStatus | null>(null);
@@ -28,6 +29,7 @@ export const App: React.FC = () => {
   const [isHeartbeatRunning, setIsHeartbeatRunning] = useState(false);
   const [isMythosOpen, setIsMythosOpen] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(false);
+  const [isHarnessOpen, setIsHarnessOpen] = useState(false);
 
   const refreshWorld = useCallback(async () => {
     try {
@@ -159,6 +161,7 @@ export const App: React.FC = () => {
         onToggleHeartbeat={handleToggleHeartbeat}
         onOpenMythos={handleOpenMythos}
         onOpenTrace={handleOpenTrace}
+        onOpenHarness={() => setIsHarnessOpen(true)}
         onExportSnapshot={handleExportSnapshot}
         onRestoreSnapshot={handleRestoreSnapshot}
         onResetWorld={handleResetWorld}
@@ -206,6 +209,13 @@ export const App: React.FC = () => {
           <ChronicleStream events={status?.recent_chronicle || []} />
         </div>
       </main>
+
+      {/* 仿真驾驭台弹窗 */}
+      <HarnessModal
+        isOpen={isHarnessOpen}
+        onClose={() => setIsHarnessOpen(false)}
+        onRefreshWorld={refreshWorld}
+      />
 
       {/* 神话史诗弹窗 */}
       <MythosModal

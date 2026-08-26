@@ -1,3 +1,4 @@
+use crate::harness::{Scenario, SimulationHarness};
 use crate::world::PrimordiaWorld;
 use axum::{
     extract::{Path, State},
@@ -146,6 +147,8 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
         .route("/api/events/stream", get(sse_events_stream))
         .route("/api/snapshot", get(get_snapshot))
         .route("/api/snapshot/restore", post(restore_snapshot))
+        .route("/api/harness/scenarios", get(get_harness_scenarios))
+        .route("/api/harness/run", post(run_harness_scenario))
         .fallback_service(serve_dir)
         .layer(CorsLayer::permissive())
         .with_state(server_state);
@@ -390,6 +393,28 @@ async fn restore_snapshot(
         .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
     *w = restored;
     Ok(Json(json!({ "status": "ok", "message": "Snapshot restored successfully", "tick": w.tick_count })))
+}
+
+async fn get_harness_scenarios() -> impl IntoResponse {
+    Json(json!(SimulationHarness::preset_scenarios()))
+}
+
+async fn run_harness_scenario(
+    State(state): State<ServerState>,
+    Json(scenario): Json<Scenario>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    let mut w = state.world.lock().await;
+    let llm = w.llm.clone();
+    let mut harness = SimulationHarness::new(&scenario.name, llm);
+    let report = harness
+        .run_scenario(scenario)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    // 同步 Harness 执行产生的最新实体与编年史至主世界
+    *w = harness.world;
+
+    Ok(Json(json!(report)))
 }
 
 // -------------------------------------------------------------------------

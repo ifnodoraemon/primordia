@@ -4,13 +4,13 @@ import {
   Sparkles,
   Activity,
   Globe,
-  BookOpen,
   Layers,
   Play,
   Pause,
   Download,
   Upload,
   RotateCcw,
+  Cpu,
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -19,6 +19,7 @@ interface HeaderProps {
   onToggleHeartbeat: () => void;
   onOpenMythos: () => void;
   onOpenTrace: () => void;
+  onOpenHarness: () => void;
   onExportSnapshot: () => void;
   onRestoreSnapshot: (json: string) => void;
   onResetWorld: () => void;
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleHeartbeat,
   onOpenMythos,
   onOpenTrace,
+  onOpenHarness,
   onExportSnapshot,
   onRestoreSnapshot,
   onResetWorld,
@@ -99,6 +101,15 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-slate-400">灵元:</span>
           <strong className="text-sky-400 font-mono">{status?.total_entities ?? 0}</strong>
         </div>
+
+        {/* 仿真与断言驾驭台 */}
+        <button
+          onClick={onOpenHarness}
+          className="flex items-center gap-1.5 bg-sky-950/70 hover:bg-sky-900/80 text-sky-300 border border-sky-700/60 px-2.5 py-1 rounded-lg font-medium transition-all shadow-sm shadow-sky-900/30 cursor-pointer"
+        >
+          <Cpu className="w-3.5 h-3.5 text-sky-400" />
+          <span>仿真驾驭台</span>
+        </button>
 
         <button
           onClick={onOpenMythos}

@@ -247,4 +247,78 @@ impl SimulationHarness {
 
         Ok(report)
     }
+
+    /// 获取内置基准预设剧本列表 (Preset Benchmark Scenarios)
+    pub fn preset_scenarios() -> Vec<Scenario> {
+        vec![
+            Scenario {
+                name: "原初创世与双灵共生 / Genesis & Symbiosis".to_string(),
+                description: "验证创世凝结、意识降临、碰撞相变与自演化生长 / Verify genesis, inhabitation, collision and autonomous growth".to_string(),
+                genesis_entities: vec![
+                    GenesisSpec {
+                        name: "青峭古石".to_string(),
+                        essence: "伫立绝壁的沉寂岩石".to_string(),
+                        traits: vec!["坚固".to_string(), "微光".to_string()],
+                        state: "沉睡于风雨之中".to_string(),
+                        domain: "悬天绝壁".to_string(),
+                    },
+                    GenesisSpec {
+                        name: "地脉游火".to_string(),
+                        essence: "裂缝中跳跃的赤炎".to_string(),
+                        traits: vec!["炽热".to_string(), "灵动".to_string()],
+                        state: "吞吐火星".to_string(),
+                        domain: "地底裂隙".to_string(),
+                    },
+                ],
+                steps: vec![
+                    HarnessStep::InhabitAndAct {
+                        entity_name_or_id: "青峭古石".to_string(),
+                        intent: "向地脉游火发出共鸣 ──► 青石释放引力波".to_string(),
+                    },
+                    HarnessStep::Collide {
+                        entity_a: "青峭古石".to_string(),
+                        entity_b: "地脉游火".to_string(),
+                    },
+                    HarnessStep::ShiftCosmicLaw,
+                    HarnessStep::TickEpoch { count: 1 },
+                    HarnessStep::AssertEntityCount { expected: 2 },
+                    HarnessStep::AssertChronicleContains {
+                        event_type: "MIND_INHABITATION".to_string(),
+                    },
+                    HarnessStep::AssertChronicleContains {
+                        event_type: "COSMIC_LAW_SHIFT".to_string(),
+                    },
+                ],
+            },
+            Scenario {
+                name: "场域共鸣与神话重铸 / Domain Resonance & Mythos".to_string(),
+                description: "验证多实体场域集体共鸣灵潮与纪元神话提炼 / Verify field resonance and mythos distillation".to_string(),
+                genesis_entities: vec![
+                    GenesisSpec {
+                        name: "雷鸣玄岩".to_string(),
+                        essence: "沐浴万千雷霆的古岩".to_string(),
+                        traits: vec!["导电".to_string(), "坚硬".to_string()],
+                        state: "吸纳天地雷元".to_string(),
+                        domain: "万仞雷池".to_string(),
+                    },
+                    GenesisSpec {
+                        name: "紫霄游电".to_string(),
+                        essence: "虚空跳跃的紫电之灵".to_string(),
+                        traits: vec!["迅捷".to_string(), "破虚".to_string()],
+                        state: "穿梭于雷池边缘".to_string(),
+                        domain: "万仞雷池".to_string(),
+                    },
+                ],
+                steps: vec![
+                    HarnessStep::TriggerDomainResonance {
+                        domain_name: "万仞雷池".to_string(),
+                    },
+                    HarnessStep::TickEpoch { count: 2 },
+                    HarnessStep::AssertChronicleContains {
+                        event_type: "DOMAIN_RESONANCE".to_string(),
+                    },
+                ],
+            },
+        ]
+    }
 }

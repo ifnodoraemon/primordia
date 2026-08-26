@@ -161,3 +161,19 @@ export async function restoreSnapshot(snapshotJson: string): Promise<any> {
   if (!res.ok) throw new Error(`Snapshot restore failed: ${await res.text()}`);
   return res.json();
 }
+
+export async function fetchHarnessScenarios(): Promise<any[]> {
+  const res = await fetch(`${API_BASE}/harness/scenarios`);
+  if (!res.ok) throw new Error(`Fetch harness scenarios failed: ${res.statusText}`);
+  return res.json();
+}
+
+export async function runHarnessScenario(scenario: any): Promise<any> {
+  const res = await fetch(`${API_BASE}/harness/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(scenario),
+  });
+  if (!res.ok) throw new Error(`Run harness scenario failed: ${await res.text()}`);
+  return res.json();
+}
