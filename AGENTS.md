@@ -65,17 +65,18 @@ primordia/
 ├── Cargo.toml                 # Rust 项目配置文件 (严格使用 rustls)
 ├── README.md                  # 中英双语项目总览与快速开始
 ├── docs/                      # 中英双语核心设计与规范文档
-│   ├── VISION_AND_AXIOMS.md   # 核心哲学与四大元公理
-│   ├── ARCHITECTURE.md        # 系统三层流水线架构规范
-│   ├── DATA_SCHEMA.md         # 统一实体与编年史 Schema
+│   ├── VISION_AND_AXIOMS.md   # 核心哲学、现代本体论与四大元公理
+│   ├── ARCHITECTURE.md        # 四层正交架构规范 (体/法/意/象)
+│   ├── DATA_SCHEMA.md         # 统一实体图谱与快照 Schema (OOO & 装配)
 │   └── PROMPTS_AND_LOOPS.md   # 核心 Prompt 模板与驱动协议
-└── src/                       # Rust 核心引擎源码
-    ├── lib.rs                 # 库根导出
-    ├── entity.rs              # 统一灵元实体模型 (Entity, Spatial)
-    ├── llm.rs                 # 异步 LLM 客户端与离线回退推演器
-    ├── world.rs               # PrimordiaWorld 调度器 (演化/化生/寄宿/编年史)
-    └── main.rs                # 运行演示入口
-```
+├── src/                       # Rust 核心引擎源码
+│   ├── lib.rs                 # 库根导出
+│   ├── entity.rs              # 统一灵元实体模型 (Entity, Spatial, Relational)
+│   ├── llm.rs                 # 异步 LLM 客户端与离线回退推演器
+│   ├── world.rs               # PrimordiaWorld 调度器 (天道/演化/化生/装配/快照)
+│   └── main.rs                # 运行演示入口
+└── tests/                     # 自动化单元与集成测试
+    └── world_tests.rs         # 核心因果算子与持久化测试
 
 ---
 
@@ -87,8 +88,11 @@ primordia/
 # 1. 语法与类型检查
 cargo check
 
-# 2. 编译并运行演示验证
+# 2. 执行自动化测试套件
+cargo test
+
+# 3. 编译并运行演示验证
 cargo run
 ```
 
-确保控制台完整打印出 4 个核心步骤（创世、寄宿、化生、自演化纪元），且无编译警告与运行时 Panic。
+确保控制台完整打印出 6 个核心步骤（创世、寄宿、化生与共生装配、天道相变、自演化纪元、快照导出），且无编译警告与运行时 Panic。

@@ -1,100 +1,106 @@
-# 《原初》系统架构与运行机制 (Architecture & Mechanics)
+# 《原初》系统架构与正交分层规范 (Architecture & Layering)
 
 > **中英双语技术规范 / Bilingual Technical Specification**
 
-本文档阐述《原初》（Primordia: Meta）纯 LLM 原生世界基座的技术分层、数据流动与核心调度机制。  
-This document specifies the technical layering, data flow, and core scheduling mechanisms of the LLM-native *Primordia: Meta* foundation.
+本文档阐述《原初》（Primordia: Meta）纯 LLM 原生元世界基座的系统架构设计原则、正交分层规范与数据流转机制。  
+This document specifies the architectural principles, orthogonal layering standards, and data flow mechanisms of the LLM-native *Primordia: Meta* foundation.
 
 ---
 
-## 1. 总体架构分层 (Layered Architecture)
+## 1. 架构哲学：体、法、意、象 四层正交模型 (The 4-Layer Orthogonal Model)
+
+为了**彻底杜绝传统游戏引擎中类层次爆炸与硬编码的过度设计（Over-engineering），同时避免前期原型代码面条式的混乱堆积（Spaghetti Anti-pattern）**，《原初》依据东方“体/法/意/象”哲学与现代本体论，建立了一套严格单向流动的四层正交架构：
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                 1. 交互与觉知层 (Interaction Layer)            │
-│   • 自由视角 / 宏观天道视角 (Cosmic God View)                  │
-│   • 实体寄宿模式 (Mind Inhabitation: Mountain/Flora/Beast)      │
-│   • 自然语言意图输入器 (Natural Language Prompt Input)         │
+│  第 3 层：感官表象与多模态层 (Phenomenal & Multimodal Layer)  │
+│  [哲学：象 / 呈现] 客体感官界面、自然语言史诗、多模态投影   │
+└──────────────────────────────▲──────────────────────────────┘
+                               │ (只读投影 / Read & Project)
+┌──────────────────────────────┴──────────────────────────────┐
+│  第 2 层：自由觉知与意图层 (Consciousness & Agency Layer)    │
+│  [哲学：意 / 觉知] 玩家/自治意识算子、自由意志注入、注意力焦点 │
 └──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│          2. LLM 原生世界调度中枢 (LLM Genesis Core)          │
-│   ┌─────────────────────────────────────────────────────┐   │
-│   │ A. 自生长心跳器 (Self-Evolution Ticker: evolve_entity)│   │
-│   │    - 异步批量驱动实体自变异与进化 (Autonomous mutations)│   │
-│   ├─────────────────────────────────────────────────────┤   │
-│   │ B. 碰撞与化生引擎 (Morphogenesis Engine: collide)   │   │
-│   │    - 实体交互、物理反应与生命化生 (Spontaneous genesis)│   │
-│   ├─────────────────────────────────────────────────────┤   │
-│   │ C. 玩家觉知转译器 (Mind Grounding: inhabit_and_act)  │   │
-│   │    - 将玩家意图转译为实体行为与连锁因果 (Action ground)│   │
-│   └─────────────────────────────────────────────────────┘   │
+                               │ (驱动与干预 / Drive & Collapse)
+┌──────────────────────────────▼──────────────────────────────┐
+│  第 1 层：语义因果与法则层 (Semantic Causality & Laws Layer) │
+│  [哲学：法 / 演化] LLM 即物理、自生长算子、相变装配、天道相变 │
 └──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│            3. 原初实体图谱与时序库 (State & Ledger)           │
-│   • 实体状态集 (JSON Entity Graph / HashMap<String, Entity>)│
-│   • 空间索引 (Spatial KD-Tree / Multi-Resolution Grid)      │
-│   • 世界编年史 (World Chronicle / Event Ledger)             │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│            4. 呈现与多模态生成层 (Generative Presentation)    │
-│   • 实体自然语言状态与故事日志 (Story Logs & Semantic Inspect)│
-│   • 动态 3D 体素 / 粒子表现映射 (Generative 3D / Particles)   │
-│   • 动态氛围音效生成 (Procedural Generative Audio / Music)   │
+                               │ (原子状态提交 / Commit Transition)
+┌──────────────────────────────▼──────────────────────────────┐
+│  第 0 层：元本体图谱层 (Ontological Graph & Ledger Layer)   │
+│  [哲学：体 / 基质] 极简实体图谱 (Entity)、关系拓扑、编年史时序库│
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 三大核心运转流程 (The 3 Core Workflows)
+## 2. 各分层职责与边界约束 (Layer Responsibilities & Boundaries)
 
-### 流程一：自生长心跳（Self-Evolution Loop）
-* **[中]**
-  1. **采样**：世界调度器按时间步长，选择活跃范围内的实体。
-  2. **构建上下文**：打包该实体的本质、属性、记忆及周边环境信息。
-  3. **LLM 演化推演**：调用 `Prompts.EVOLVE_ENTITY`，LLM 推导其自发变异与萌芽。
-  4. **状态写回**：更新实体状态，若产生分裂/孕育则向图谱注入新实体。
-* **[EN]**
-  1. **Sample**: The world scheduler selects active entities per tick.
-  2. **Context Assembly**: Packs the entity's essence, traits, memory, and surroundings.
-  3. **LLM Evolution**: Invokes `Prompts.EVOLVE_ENTITY` to deduce spontaneous mutations.
-  4. **State Commit**: Updates entity state and instantiates offspring into the graph if sprouted.
+### 【第 0 层】元本体图谱层 (Ontological Graph & Ledger Layer) —— “体”（Being）
+* **定位**：世界的纯粹数据基质（Substrate），提供客观存在与时序事实的存储。
+* **核心组件**：
+  - `Entity`：统一实体模型（含 `essence`、`withdrawn_core`、`spatial` 拓扑域与 `assemblages`）。
+  - `Chronicle`：不可篡改的世界编年史时序事件流水。
+  - `Snapshot`：世界全量状态的无损 JSON 序列化与热加载。
+* **⛔ 边界禁令**：**严禁在本层中调用 LLM、编写 Prompt 或硬编码业务物理规则**。它仅是纯粹的数据容器与局部状态变异算子。
 
-### 流程二：碰撞与化生（Collision & Morphogenesis）
-* **[中]**
-  1. **邻近检测**：当两个实体在空间中靠近或发生接触。
-  2. **构建相互作用 Context**：打包双方本质属性与动量。
-  3. **LLM 裁决推演**：调用 `Prompts.RESOLVE_INTERACTION`，裁决相互影响、同化、或化生出第三种全新存在。
-  4. **编年史记录**：将化生事件永久记录入世界编年史。
-* **[EN]**
-  1. **Proximity Detection**: Triggered when two entities intersect in spatial coordinates.
-  2. **Interaction Context**: Bundles both entities' intrinsic essences and momenta.
-  3. **LLM Adjudication**: Invokes `Prompts.RESOLVE_INTERACTION` to determine mutual change, assimilation, or spontaneous genesis of a new entity.
-  4. **Chronicle Inscription**: Inscribes the morphogenesis event into the permanent ledger.
+### 【第 1 层】语义因果与法则层 (Semantic Causality & Laws Layer) —— “法”（Becoming）
+* **定位**：世界的演化法则与相变中枢，大语言模型（LLM）在此充当物理法则与因果裁决核心。
+* **核心组件**：
+  - **自生长演化算子 ($T_{self}$)**：实体对抗熵增的微观变异与分裂孕育。
+  - **交互相变算子 ($T_{morph}$)**：两实体相遇时的碰撞改变、生命化生或德勒兹共生装配。
+  - **宏观天道算子 ($T_{macro}$)**：宇宙气候与物理常数（`cosmic_atmosphere`）的纪元相变。
+* **⛔ 边界禁令**：本层只负责将上下文送入 LLM 进行因果推理，并将推导出的状态变更作为原子操作写回第 0 层。
 
-### 流程三：玩家觉知融入（Mind Inhabitation）
-* **[中]**
-  1. **选定寄宿体**：玩家将意念锚定在世界中的任意实体。
-  2. **意图注入**：玩家输入自然语言自由意志指令。
-  3. **LLM 因果推导**：以该实体为主体，推导其动作执行、自身负荷与周围环境的波纹。
-  4. **波纹反馈**：更新被寄宿实体状态，并在记忆中铭刻被“宏大意志”驱使的痕迹。
-* **[EN]**
-  1. **Anchor**: Player anchors consciousness onto any target entity.
-  2. **Intent Injection**: Player provides natural language free-will instructions.
-  3. **LLM Grounding**: Reasons through physical/spiritual feasibility, subject feedback, and environmental ripples.
-  4. **Ripple Feedback**: Updates the host entity and inscribes the memory of divine possession.
+### 【第 2 层】自由觉知与意图层 (Consciousness & Agency Layer) —— “意”（Mind）
+* **定位**：脱嵌式注意力与自由意志中枢，践行泛心论与具身生成哲学。
+* **核心组件**：
+  - **觉知算子（Attention Kernel）**：玩家或自治意识脱离具体肉身，自由锚定并寄宿入世界任意实体。
+  - **意志转译器（Mind Grounding）**：将第一人称自然语言意图转译为宿主实体的行为，并向周围环境辐射因果波纹。
+* **⛔ 边界禁令**：觉知算子本身无任何物理坐标与硬编码技能，其一切影响力必须通过寄宿载体与第 1 层的因果裁决生效。
 
-### 流程四：宏观天道相变与共生装配（Cosmic Law Shift & Assemblage Symbiosis）
-* **[中]**
-  1. **天道演化**：按大纪元周期推演宇宙宏观气象与物理常数（`cosmic_atmosphere`），反向作用于万物自演化 Prompt。
-  2. **装配共生**：两个实体在碰撞交融中缔结块茎式共生装配体（`assemblages`），保留各自独立性并共享感知场。
-  3. **持久化快照**：完整世界实体图谱与编年史支持 JSON 无损快照导出与热加载。
-* **[EN]**
-  1. **Cosmic Law Evolution**: Reasons macro atmospheric & physical phase transitions per epoch, conditioning local entity evolutions.
-  2. **Assemblage Symbiosis**: Entities establish rhizomatic symbiotic assemblages, preserving ontological autonomy while coupling perceptual fields.
-  3. **Persistent Snapshots**: Complete world graph and chronicle state support lossless JSON snapshot export and hot reload.
+### 【第 3 层】感官表象与呈现层 (Phenomenal & Multimodal Layer) —— “象”（Phenomenon）
+* **定位**：感官界面的多模态外显层。
+* **核心组件**：
+  - **感官表象（Sensory Manifestation）**：提取实体的对外表象（特征、场域、状态），隐藏退隐内核。
+  - **世界史诗编年（Chronicle View）**：双语终端故事日志、事件流格式化输出。
+  - **多模态投影（Multimodal Projection）**：（未来扩展）根据自然语言状态生成体素结构与环境音效。
+* **⛔ 边界禁令**：本层为**纯只读投影**，其渲染与呈现逻辑绝不反向污染第 0 层的客观实体数据。
+
+---
+
+## 3. 防范“过度设计”与“混乱堆积”的准则 (Engineering Balance Matrix)
+
+| 潜在风险 | 传统误区 (What to Avoid) | 《原初》的正交克制原则 (Our Standard) |
+| :--- | :--- | :--- |
+| **过度设计 (Over-Engineering)** | 引入数十种 Component 的传统 ECS、抽象工厂层层嵌套、生硬的数值战斗公式与硬编码状态机。 | **万物皆 `Entity`**。无需 ECS 分解，自然语言描述即是一切特征与状态；所有物理逻辑全部收敛由 LLM 第一性推理。 |
+| **混乱堆积 (Spaghetti Chaos)** | 将网络请求、Prompt 拼接、实体修改、终端打印全揉在一个数千行的 God Object 或循环中。 | **严格单向因果流**：觉知（意） ──► 裁决（法） ──► 提交（体） ──► 投影（象）。模块间边界清晰、高内聚低耦合。 |
+
+---
+
+## 4. 核心单向因果流示意 (Unidirectional Causal Flow)
+
+```
+[玩家/Agent 自然语言意图 / Player Intent]
+                    │
+                    ▼ (注入意图 / Inhabit)
+┌───────────────────────────────────────────────┐
+│ 第 2 层: 自由觉知 (Mind / Attention Kernel)     │
+└───────────────────┬───────────────────────────┘
+                    │ (打包实体感官界面与天道气象)
+                    ▼
+┌───────────────────────────────────────────────┐
+│ 第 1 层: 语义因果 (Causality / LLM Arbiter)    │ ──► [LLM 第一性原理推理]
+└───────────────────┬───────────────────────────┘
+                    │ (原子状态更新 & 编年史记录)
+                    ▼
+┌───────────────────────────────────────────────┐
+│ 第 0 层: 元本体图谱 (Substrate / Entity Graph) │ ──► [持久化快照 Snapshot]
+└───────────────────┬───────────────────────────┘
+                    │ (只读状态读取)
+                    ▼
+┌───────────────────────────────────────────────┐
+│ 第 3 层: 感官呈现 (Presentation / Chronicle)  │ ──► [双语史诗日志 / 多模态]
+└───────────────────────────────────────────────┘
+```
