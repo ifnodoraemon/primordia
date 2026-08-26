@@ -39,8 +39,36 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     refreshWorld();
-    const interval = setInterval(refreshWorld, 3000);
-    return () => clearInterval(interval);
+
+    // 建立与 Rust 后端的原生 Server-Sent Events (SSE) 实时长连接
+    const eventSource = new EventSource('/api/events/stream');
+
+    eventSource.addEventListener('chronicle', (e) => {
+      try {
+        const newEvent = JSON.parse(e.data);
+        setStatus((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            chronicle_count: prev.chronicle_count + 1,
+            recent_chronicle: [newEvent, ...prev.recent_chronicle.slice(0, 49)],
+          };
+        });
+        refreshWorld();
+      } catch (err) {
+        console.error('Failed to parse SSE event:', err);
+      }
+    });
+
+    eventSource.onerror = (err) => {
+      console.warn('SSE connection error, fallback to heartbeat polling:', err);
+    };
+
+    const interval = setInterval(refreshWorld, 4000);
+    return () => {
+      clearInterval(interval);
+      eventSource.close();
+    };
   }, [refreshWorld]);
 
   const handleOpenMythos = async () => {

@@ -2,15 +2,22 @@ use crate::world::PrimordiaWorld;
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::{Html, IntoResponse, Json},
+    response::{
+        sse::{Event, KeepAlive, Sse},
+        Html, IntoResponse, Json,
+    },
     routing::{get, post},
     Router,
 };
+use futures_util::stream::Stream;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio_stream::wrappers::BroadcastStream;
+use tokio_stream::StreamExt;
 use tower_http::cors::CorsLayer;
 
 pub type SharedWorld = Arc<Mutex<PrimordiaWorld>>;
@@ -60,6 +67,7 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
         .route("/api/shift_law", post(shift_cosmic_law))
         .route("/api/mythos", get(get_mythos))
         .route("/api/trace", get(get_trace))
+        .route("/api/events/stream", get(sse_events_stream))
         .route("/api/snapshot", get(get_snapshot))
         .fallback_service(serve_dir)
         .layer(CorsLayer::permissive())
@@ -198,6 +206,27 @@ async fn get_trace(State(world): State<SharedWorld>) -> impl IntoResponse {
         "summary": w.tracer.summary(),
         "spans": w.tracer.spans
     }))
+}
+
+async fn sse_events_stream(
+    State(world): State<SharedWorld>,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    let rx = {
+        let w = world.lock().await;
+        w.subscribe_events()
+    };
+
+    let stream = BroadcastStream::new(rx).filter_map(|res| {
+        match res {
+            Ok(event) => {
+                let json = serde_json::to_string(&event).unwrap_or_default();
+                Some(Ok(Event::default().event("chronicle").data(json)))
+            }
+            Err(_) => None,
+        }
+    });
+
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
 
 async fn get_snapshot(State(world): State<SharedWorld>) -> Result<Json<Value>, (StatusCode, String)> {

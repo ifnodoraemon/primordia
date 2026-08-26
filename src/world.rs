@@ -12,6 +12,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
+use tokio::sync::broadcast;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChronicleEvent {
@@ -42,11 +43,13 @@ pub struct PrimordiaWorld {
     pub chronicle: Vec<ChronicleEvent>,
     /// 全生命周期因果链路追踪器 (Causality & Lineage Tracer)
     pub tracer: CausalityTracer,
+    pub event_sender: broadcast::Sender<ChronicleEvent>,
     llm: Arc<dyn LlmClient>,
 }
 
 impl PrimordiaWorld {
     pub fn new(name: &str) -> Self {
+        let (tx, _) = broadcast::channel(512);
         Self {
             name: name.to_string(),
             tick_count: 0,
@@ -54,11 +57,13 @@ impl PrimordiaWorld {
             entities: HashMap::new(),
             chronicle: Vec::new(),
             tracer: CausalityTracer::new(),
+            event_sender: tx,
             llm: create_llm_client_from_env(),
         }
     }
 
     pub fn with_llm(name: &str, llm: Arc<dyn LlmClient>) -> Self {
+        let (tx, _) = broadcast::channel(512);
         Self {
             name: name.to_string(),
             tick_count: 0,
@@ -66,8 +71,13 @@ impl PrimordiaWorld {
             entities: HashMap::new(),
             chronicle: Vec::new(),
             tracer: CausalityTracer::new(),
+            event_sender: tx,
             llm,
         }
+    }
+
+    pub fn subscribe_events(&self) -> broadcast::Receiver<ChronicleEvent> {
+        self.event_sender.subscribe()
     }
 
     pub fn llm(&self) -> &dyn LlmClient {
@@ -116,6 +126,7 @@ impl PrimordiaWorld {
                 .unwrap_or_default()
                 .as_secs(),
         };
+        let _ = self.event_sender.send(event.clone());
         println!("[纪元 {} | Epoch {}] <{}> {}", self.tick_count, self.tick_count, event_type, detail);
         self.chronicle.push(event);
     }
@@ -232,6 +243,7 @@ impl PrimordiaWorld {
     pub fn import_snapshot_json(json_str: &str, llm: Arc<dyn LlmClient>) -> Result<Self, String> {
         let snapshot: WorldSnapshot = serde_json::from_str(json_str)
             .map_err(|e| format!("Failed to parse world snapshot: {}", e))?;
+        let (tx, _) = broadcast::channel(512);
         Ok(Self {
             name: snapshot.name,
             tick_count: snapshot.tick_count,
@@ -239,6 +251,7 @@ impl PrimordiaWorld {
             entities: snapshot.entities,
             chronicle: snapshot.chronicle,
             tracer: snapshot.tracer,
+            event_sender: tx,
             llm,
         })
     }
