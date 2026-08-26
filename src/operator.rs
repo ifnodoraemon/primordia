@@ -477,6 +477,104 @@ impl CausalOperator for PanpsychicCommunionOperator {
 }
 
 // =========================================================================
+// 5.5 客体际自发神念问答与灵潮共振算子 (Intersubjective Dialogue Operator - Layer 2)
+// =========================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DialogueContext {
+    pub speaker_id: String,
+    pub listener_id: String,
+}
+
+pub struct IntersubjectiveDialogueOperator;
+
+impl CausalOperator for IntersubjectiveDialogueOperator {
+    type Context = DialogueContext;
+    type Output = Value;
+
+    fn operator_type(&self) -> &'static str {
+        "INTERSUBJECTIVE_DIALOGUE"
+    }
+
+    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
+        vec![ctx.speaker_id.clone(), ctx.listener_id.clone()]
+    }
+
+    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
+        let speaker = world.entities.get(&ctx.speaker_id).ok_or_else(|| format!("Entity {} not found", ctx.speaker_id))?;
+        let listener = world.entities.get(&ctx.listener_id).ok_or_else(|| format!("Entity {} not found", ctx.listener_id))?;
+
+        let system_prompt = "你是《原初》客体际性（Intersubjectivity）与万物神念交织裁决核心。\
+            在元世界中，任意两个实体皆有灵性感知，彼此在场域中可自发传念交流。\
+            请分别代入发话实体与听话实体，推演它们之间第一人称的意念对话、彼此心灵的触动、状态演进与共同顿悟。\
+            请务必返回 JSON: {\
+                speaker_utterance: str, \
+                listener_reply: str, \
+                speaker_new_state: str, \
+                listener_new_state: str, \
+                form_assemblage: bool, \
+                shared_epiphany: str\
+            }".to_string();
+
+        let user_prompt = format!(
+            "当前天道背景: {}\n发话实体 【{}】 (ID: {}):\n{}\n听话实体 【{}】 (ID: {}):\n{}",
+            world.cosmic_atmosphere,
+            speaker.name, ctx.speaker_id, serde_json::to_string(speaker).map_err(|e| e.to_string())?,
+            listener.name, ctx.listener_id, serde_json::to_string(listener).map_err(|e| e.to_string())?
+        );
+
+        Ok((system_prompt, user_prompt))
+    }
+
+    fn apply_mutation(
+        &self,
+        world: &mut PrimordiaWorld,
+        ctx: &Self::Context,
+        result: &Value,
+    ) -> Result<(Self::Output, String), String> {
+        let speaker_say = result["speaker_utterance"].as_str().unwrap_or("静静向对方投去一缕微光");
+        let listener_say = result["listener_reply"].as_str().unwrap_or("在微光中微微震颤回应");
+        let epiphany = result["shared_epiphany"].as_str().unwrap_or("感受到了彼此的存在，天地并非孤寂");
+
+        let mut speaker_name = ctx.speaker_id.clone();
+        let mut listener_name = ctx.listener_id.clone();
+
+        if let Some(spk) = world.entities.get_mut(&ctx.speaker_id) {
+            speaker_name = spk.name.clone();
+            if let Some(ns) = result["speaker_new_state"].as_str() {
+                spk.current_state = ns.to_string();
+            }
+            spk.record_memory(format!("向【{}】传念: \"{}\" ──► 收到回应: \"{}\"", listener_name, speaker_say, listener_say));
+        }
+
+        if let Some(lis) = world.entities.get_mut(&ctx.listener_id) {
+            listener_name = lis.name.clone();
+            if let Some(ns) = result["listener_new_state"].as_str() {
+                lis.current_state = ns.to_string();
+            }
+            lis.record_memory(format!("听到【{}】传念: \"{}\" ──► 心灵回应: \"{}\"", speaker_name, speaker_say, listener_say));
+        }
+
+        let form_symbiosis = result["form_assemblage"].as_bool().unwrap_or(true);
+        if form_symbiosis {
+            if let Some(spk) = world.entities.get_mut(&ctx.speaker_id) {
+                spk.link_assemblage(&ctx.listener_id);
+            }
+            if let Some(lis) = world.entities.get_mut(&ctx.listener_id) {
+                lis.link_assemblage(&ctx.speaker_id);
+            }
+        }
+
+        let event_detail = format!(
+            "【{}】与【{}】神念交织问答: \"{}\" / \"{}\" ──► 共同顿悟: {} / Telepathic dialogue between [{}] and [{}]: \"{}\"",
+            speaker_name, listener_name, speaker_say, listener_say, epiphany, speaker_name, listener_name, epiphany
+        );
+
+        Ok((result.clone(), event_detail))
+    }
+}
+
+// =========================================================================
 // 6. 宏观天道法则相变算子 (Cosmic Law Shift Operator)
 // =========================================================================
 

@@ -1,6 +1,17 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { WorldStatus } from '../types';
-import { Sparkles, Activity, Globe, BookOpen, Layers, Play, Pause } from 'lucide-react';
+import {
+  Sparkles,
+  Activity,
+  Globe,
+  BookOpen,
+  Layers,
+  Play,
+  Pause,
+  Download,
+  Upload,
+  RotateCcw,
+} from 'lucide-react';
 
 interface HeaderProps {
   status: WorldStatus | null;
@@ -8,6 +19,9 @@ interface HeaderProps {
   onToggleHeartbeat: () => void;
   onOpenMythos: () => void;
   onOpenTrace: () => void;
+  onExportSnapshot: () => void;
+  onRestoreSnapshot: (json: string) => void;
+  onResetWorld: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,9 +30,28 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleHeartbeat,
   onOpenMythos,
   onOpenTrace,
+  onExportSnapshot,
+  onRestoreSnapshot,
+  onResetWorld,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        onRestoreSnapshot(content);
+      }
+    };
+    reader.readAsText(file);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   return (
-    <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50">
+    <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-6 py-3 flex flex-wrap justify-between items-center sticky top-0 z-50 gap-2">
       <div className="flex items-center gap-3">
         <span className="text-2xl filter drop-shadow-[0_0_8px_rgba(74,222,128,0.6)]">🌌</span>
         <div>
@@ -31,7 +64,7 @@ export const Header: React.FC<HeaderProps> = ({
         </span>
       </div>
 
-      <div className="flex items-center gap-3 text-xs">
+      <div className="flex items-center gap-2.5 text-xs flex-wrap">
         {/* 宇宙自演化自治心跳开关 */}
         <button
           onClick={onToggleHeartbeat}
@@ -45,48 +78,81 @@ export const Header: React.FC<HeaderProps> = ({
             <>
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               <Pause className="w-3.5 h-3.5 text-emerald-400" />
-              <span>宇宙心跳: 自动演化中 (5s)</span>
+              <span>宇宙心跳 (5s)</span>
             </>
           ) : (
             <>
               <Play className="w-3.5 h-3.5 text-slate-400" />
-              <span>启动宇宙自演化心跳</span>
+              <span>启动自演化</span>
             </>
           )}
         </button>
 
-        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-full">
+        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-full">
           <Activity className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-slate-400">纪元 / Epoch:</span>
-          <strong className="text-emerald-400 font-mono text-sm">{status?.tick_count ?? 0}</strong>
+          <span className="text-slate-400">纪元:</span>
+          <strong className="text-emerald-400 font-mono">{status?.tick_count ?? 0}</strong>
         </div>
 
-        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-full">
+        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-2.5 py-1 rounded-full">
           <Globe className="w-3.5 h-3.5 text-sky-400" />
-          <span className="text-slate-400">灵元 / Entities:</span>
-          <strong className="text-sky-400 font-mono text-sm">{status?.total_entities ?? 0}</strong>
-        </div>
-
-        <div className="flex items-center gap-1.5 bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-full">
-          <BookOpen className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-slate-400">编年史 / Events:</span>
-          <strong className="text-amber-400 font-mono text-sm">{status?.chronicle_count ?? 0}</strong>
+          <span className="text-slate-400">灵元:</span>
+          <strong className="text-sky-400 font-mono">{status?.total_entities ?? 0}</strong>
         </div>
 
         <button
           onClick={onOpenMythos}
-          className="flex items-center gap-1.5 bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 border border-purple-700/60 px-3 py-1.5 rounded-lg font-medium transition-all shadow-sm shadow-purple-900/30 cursor-pointer"
+          className="flex items-center gap-1.5 bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 border border-purple-700/60 px-2.5 py-1 rounded-lg font-medium transition-all shadow-sm shadow-purple-900/30 cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-          <span>纪元史诗 / Mythos</span>
+          <span>史诗</span>
         </button>
 
         <button
           onClick={onOpenTrace}
-          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer"
+          className="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg font-medium transition-all cursor-pointer"
         >
           <Layers className="w-3.5 h-3.5 text-slate-400" />
-          <span>因果追踪 / Trace</span>
+          <span>因果追踪</span>
+        </button>
+
+        {/* 快照导出与载入 */}
+        <button
+          onClick={onExportSnapshot}
+          title="导出当前宇宙全景快照 JSON"
+          className="flex items-center gap-1 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+        >
+          <Download className="w-3 h-3 text-sky-400" />
+          <span>快照</span>
+        </button>
+
+        <label
+          title="载入平行宇宙快照 JSON"
+          className="flex items-center gap-1 bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+        >
+          <Upload className="w-3 h-3 text-emerald-400" />
+          <span>载入</span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+        </label>
+
+        {/* 重置世界 */}
+        <button
+          onClick={() => {
+            if (confirm('确认重置宇宙回归虚空鸿蒙初辟之态？当前所有演化记录将被清空。')) {
+              onResetWorld();
+            }
+          }}
+          title="重置宇宙回归虚空鸿蒙"
+          className="flex items-center gap-1 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-900/50 px-2 py-1 rounded-lg transition-colors cursor-pointer"
+        >
+          <RotateCcw className="w-3 h-3 text-rose-400" />
+          <span>重置</span>
         </button>
       </div>
     </header>

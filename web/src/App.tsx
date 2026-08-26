@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Entity, MythosChapter, TraceData, WorldStatus } from './types';
 import {
+  exportSnapshot,
   fetchEntities,
   fetchHeartbeatStatus,
   fetchMythos,
   fetchTrace,
   fetchWorldStatus,
+  restoreSnapshot,
   toggleHeartbeat,
+  triggerWorldReset,
 } from './api';
 import { Header } from './components/Header';
 import { CosmicRenderer } from './components/CosmicRenderer';
@@ -56,6 +59,41 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleExportSnapshot = async () => {
+    try {
+      const data = await exportSnapshot();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `primordia-epoch-${status?.tick_count || 0}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert(`导出快照失败: ${e.message}`);
+    }
+  };
+
+  const handleRestoreSnapshot = async (jsonStr: string) => {
+    try {
+      await restoreSnapshot(jsonStr);
+      await refreshWorld();
+      alert('平行宇宙快照已成功载入！');
+    } catch (e: any) {
+      alert(`载入快照失败: ${e.message}`);
+    }
+  };
+
+  const handleResetWorld = async () => {
+    try {
+      await triggerWorldReset();
+      setSelectedEntity(null);
+      await refreshWorld();
+    } catch (e: any) {
+      alert(`重置世界失败: ${e.message}`);
+    }
+  };
+
   useEffect(() => {
     refreshWorld();
 
@@ -70,7 +108,7 @@ export const App: React.FC = () => {
           return {
             ...prev,
             chronicle_count: prev.chronicle_count + 1,
-            recent_chronicle: [newEvent, ...prev.recent_chronicle.slice(0, 49)],
+            recent_chronicle: [newEvent, ...prev.recent_chronicle.slice(0, 19)],
           };
         });
         refreshWorld();
@@ -80,12 +118,10 @@ export const App: React.FC = () => {
     });
 
     eventSource.onerror = (err) => {
-      console.warn('SSE connection error, fallback to heartbeat polling:', err);
+      console.warn('SSE stream connection warning:', err);
     };
 
-    const interval = setInterval(refreshWorld, 4000);
     return () => {
-      clearInterval(interval);
       eventSource.close();
     };
   }, [refreshWorld]);
@@ -123,6 +159,9 @@ export const App: React.FC = () => {
         onToggleHeartbeat={handleToggleHeartbeat}
         onOpenMythos={handleOpenMythos}
         onOpenTrace={handleOpenTrace}
+        onExportSnapshot={handleExportSnapshot}
+        onRestoreSnapshot={handleRestoreSnapshot}
+        onResetWorld={handleResetWorld}
       />
 
       {/* 宏观天道气象横幅 */}

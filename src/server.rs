@@ -64,6 +64,17 @@ pub struct CommunePayload {
     pub query: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DialoguePayload {
+    pub speaker_id: String,
+    pub listener_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RestoreSnapshotPayload {
+    pub snapshot_json: String,
+}
+
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 #[derive(Clone)]
@@ -117,10 +128,12 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
 
     let app = Router::new()
         .route("/api/world/status", get(get_world_status))
+        .route("/api/world/reset", post(reset_world_state))
         .route("/api/entities", get(get_entities).post(create_entity))
         .route("/api/entities/:id", get(get_entity_detail))
         .route("/api/inhabit", post(inhabit_entity))
         .route("/api/commune", post(commune_entity))
+        .route("/api/dialogue", post(dialogue_entities))
         .route("/api/act", post(act_autonomously))
         .route("/api/collide", post(collide_entities))
         .route("/api/resonate", post(trigger_resonance))
@@ -132,6 +145,7 @@ pub async fn start_web_server(world: SharedWorld, port: u16) -> Result<(), Box<d
         .route("/api/heartbeat/toggle", post(toggle_heartbeat))
         .route("/api/events/stream", get(sse_events_stream))
         .route("/api/snapshot", get(get_snapshot))
+        .route("/api/snapshot/restore", post(restore_snapshot))
         .fallback_service(serve_dir)
         .layer(CorsLayer::permissive())
         .with_state(server_state);
@@ -217,6 +231,24 @@ async fn commune_entity(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(res))
+}
+
+async fn dialogue_entities(
+    State(state): State<ServerState>,
+    Json(payload): Json<DialoguePayload>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    let mut w = state.world.lock().await;
+    let res = w
+        .intersubjective_dialogue(&payload.speaker_id, &payload.listener_id)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(res))
+}
+
+async fn reset_world_state(State(state): State<ServerState>) -> impl IntoResponse {
+    let mut w = state.world.lock().await;
+    w.reset_world();
+    Json(json!({ "status": "ok", "message": "World reset to primordial chaos" }))
 }
 
 async fn act_autonomously(
@@ -346,6 +378,18 @@ async fn get_snapshot(State(state): State<ServerState>) -> Result<Json<Value>, (
     let val: Value = serde_json::from_str(&json_str)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(val))
+}
+
+async fn restore_snapshot(
+    State(state): State<ServerState>,
+    Json(payload): Json<RestoreSnapshotPayload>,
+) -> Result<Json<Value>, (StatusCode, String)> {
+    let mut w = state.world.lock().await;
+    let llm = w.llm.clone();
+    let restored = PrimordiaWorld::import_snapshot_json(&payload.snapshot_json, llm)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    *w = restored;
+    Ok(Json(json!({ "status": "ok", "message": "Snapshot restored successfully", "tick": w.tick_count })))
 }
 
 // -------------------------------------------------------------------------

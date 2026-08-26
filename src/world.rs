@@ -3,9 +3,9 @@ use crate::llm::{create_llm_client_from_env, LlmClient};
 use crate::mythos::{MythosChapter, MythosEngine};
 use crate::operator::{
     AutonomousAgencyOperator, CausalExecutor, CommunionContext, CosmicLawOperator,
-    DomainResonanceOperator, MindInhabitationContext, MindInhabitationOperator,
-    MorphogenesisContext, MorphogenesisOperator, PanpsychicCommunionOperator,
-    SelfEvolutionOperator,
+    DialogueContext, DomainResonanceOperator, IntersubjectiveDialogueOperator,
+    MindInhabitationContext, MindInhabitationOperator, MorphogenesisContext,
+    MorphogenesisOperator, PanpsychicCommunionOperator, SelfEvolutionOperator,
 };
 use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
@@ -45,7 +45,7 @@ pub struct PrimordiaWorld {
     /// 全生命周期因果链路追踪器 (Causality & Lineage Tracer)
     pub tracer: CausalityTracer,
     pub event_sender: broadcast::Sender<ChronicleEvent>,
-    llm: Arc<dyn LlmClient>,
+    pub llm: Arc<dyn LlmClient>,
 }
 
 impl PrimordiaWorld {
@@ -208,6 +208,19 @@ impl PrimordiaWorld {
         .await
     }
 
+    /// 实体之间自发客体际神念交织问答 (Intersubjective Dialogue - Strategy Delegation)
+    pub async fn intersubjective_dialogue(&mut self, speaker_id: &str, listener_id: &str) -> Result<Value, String> {
+        CausalExecutor::execute(
+            self,
+            &IntersubjectiveDialogueOperator,
+            &DialogueContext {
+                speaker_id: speaker_id.to_string(),
+                listener_id: listener_id.to_string(),
+            },
+        )
+        .await
+    }
+
     /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution - Strategy Delegation)
     pub async fn evolve_cosmic_law(&mut self) -> Result<String, String> {
         CausalExecutor::execute(self, &CosmicLawOperator, &()).await
@@ -221,6 +234,15 @@ impl PrimordiaWorld {
     /// 提炼当前编年史为神话史诗 (Distill Chronicle into Mythos Chapter)
     pub async fn distill_mythos(&self) -> Result<MythosChapter, String> {
         MythosEngine::distill_epoch_mythos(self.llm.as_ref(), &self.chronicle, self.tick_count).await
+    }
+
+    /// 重置宇宙回归鸿蒙创世态 (Reset World to Primordial Genesis)
+    pub fn reset_world(&mut self) {
+        self.tick_count = 0;
+        self.cosmic_atmosphere = "原初鸿蒙初辟，虚空中星尘与暗能量自发涌动 / Primordial Void Genesis, swirling stardust and dark currents".to_string();
+        self.entities.clear();
+        self.chronicle.clear();
+        self.record_event("WORLD_RESET", "宇宙重置回归虚空鸿蒙初辟之态 / World reset to primordial genesis");
     }
 
     /// 推进一个世界纪元周期 (Advance World Epoch Tick)

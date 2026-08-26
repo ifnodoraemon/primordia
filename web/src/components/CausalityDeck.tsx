@@ -8,8 +8,9 @@ import {
   triggerInhabitation,
   triggerAutonomousAct,
   triggerGenesisEntity,
+  triggerDialogue,
 } from '../api';
-import { Zap, Compass, Flame, Waves, Sparkles, Send, Bot, PlusCircle, X } from 'lucide-react';
+import { Zap, Compass, Flame, Waves, Sparkles, Send, Bot, PlusCircle, X, MessagesSquare } from 'lucide-react';
 
 interface CausalityDeckProps {
   entities: Entity[];
@@ -87,6 +88,20 @@ export const CausalityDeck: React.FC<CausalityDeckProps> = ({
     const idB = prompt('请输入实体 B 的 ID：', defaultB);
     if (idA && idB) {
       handleAction('collide', () => triggerCollision(idA, idB));
+    }
+  };
+
+  const handlePromptDialogue = () => {
+    if (entities.length < 2) {
+      alert('宇宙中需要至少两个实体才能进行客体际神念问答！');
+      return;
+    }
+    const defaultA = selectedEntity ? selectedEntity.id : entities[0].id;
+    const defaultB = entities.find((e) => e.id !== defaultA)?.id || entities[1].id;
+    const idA = prompt('请输入发话实体 A 的 ID：', defaultA);
+    const idB = prompt('请输入听话实体 B 的 ID：', defaultB);
+    if (idA && idB) {
+      handleAction('dialogue', () => triggerDialogue(idA, idB));
     }
   };
 
@@ -240,7 +255,16 @@ export const CausalityDeck: React.FC<CausalityDeckProps> = ({
           className="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer disabled:opacity-50"
         >
           <Bot className="w-3.5 h-3.5 text-purple-400" />
-          <span>萌芽自主心智 / Auto Act</span>
+          <span>自主心智 / Auto Act</span>
+        </button>
+
+        <button
+          onClick={handlePromptDialogue}
+          disabled={loadingAction !== null || entities.length < 2}
+          className="bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 border border-slate-700 transition-all cursor-pointer disabled:opacity-50"
+        >
+          <MessagesSquare className="w-3.5 h-3.5 text-cyan-400" />
+          <span>神念交织 / Dialogue</span>
         </button>
       </div>
 

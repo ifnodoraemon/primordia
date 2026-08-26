@@ -129,3 +129,35 @@ export async function triggerGenesisEntity(payload: {
   if (!res.ok) throw new Error(`Genesis failed: ${await res.text()}`);
   return res.json();
 }
+
+export async function triggerDialogue(speakerId: string, listenerId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/dialogue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ speaker_id: speakerId, listener_id: listenerId }),
+  });
+  if (!res.ok) throw new Error(`Dialogue failed: ${await res.text()}`);
+  return res.json();
+}
+
+export async function triggerWorldReset(): Promise<any> {
+  const res = await fetch(`${API_BASE}/world/reset`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Reset failed: ${await res.text()}`);
+  return res.json();
+}
+
+export async function exportSnapshot(): Promise<any> {
+  const res = await fetch(`${API_BASE}/snapshot`);
+  if (!res.ok) throw new Error(`Snapshot export failed: ${res.statusText}`);
+  return res.json();
+}
+
+export async function restoreSnapshot(snapshotJson: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/snapshot/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ snapshot_json: snapshotJson }),
+  });
+  if (!res.ok) throw new Error(`Snapshot restore failed: ${await res.text()}`);
+  return res.json();
+}

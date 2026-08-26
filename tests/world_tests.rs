@@ -241,3 +241,38 @@ async fn test_panpsychic_communion_and_spawning() {
     assert!(ent.memory_stream.iter().any(|m| m.contains("你在漫长的岁月中感受到了什么？")));
     assert!(world.chronicle.iter().any(|e| e.event_type == "PANPSYCHIC_COMMUNION"));
 }
+
+#[tokio::test]
+async fn test_intersubjective_dialogue_and_world_reset() {
+    let mock_resp = serde_json::json!({
+        "speaker_utterance": "你身上的炽热，可曾烧透深渊的严寒？",
+        "listener_reply": "我在严寒中诞生，因而才更懂得燃烧的意义。",
+        "speaker_new_state": "表层凝结一层温润琉璃火光",
+        "listener_new_state": "焰心中沉淀下一颗青黑岩晶",
+        "form_assemblage": true,
+        "shared_epiphany": "火与石终在虚空中完成了彼此的锚定与自性升华"
+    });
+
+    let mock_llm = Arc::new(MockLlmClient { return_val: mock_resp });
+    let mut world = PrimordiaWorld::with_llm("神念问答测试世界", mock_llm);
+
+    let id_a = world.add_entity("青峭古石", "青黑岩石", vec!["坚固"], "静立");
+    let id_b = world.add_entity("地脉游火", "跳跃赤炎", vec!["炽热"], "吞吐火苗");
+
+    let dialogue_res = world.intersubjective_dialogue(&id_a, &id_b).await;
+    assert!(dialogue_res.is_ok());
+
+    let ent_a = world.entities.get(&id_a).unwrap();
+    let ent_b = world.entities.get(&id_b).unwrap();
+    assert!(ent_a.assemblages.contains(&id_b));
+    assert!(ent_b.assemblages.contains(&id_a));
+    assert!(ent_a.memory_stream.iter().any(|m| m.contains("传念")));
+    assert!(ent_b.memory_stream.iter().any(|m| m.contains("传念")));
+
+    // 验证重置世界
+    world.reset_world();
+    assert_eq!(world.tick_count, 0);
+    assert_eq!(world.entities.len(), 0);
+    assert_eq!(world.chronicle.len(), 1);
+    assert_eq!(world.chronicle[0].event_type, "WORLD_RESET");
+}
