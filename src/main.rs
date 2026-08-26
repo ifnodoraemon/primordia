@@ -69,6 +69,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             HarnessStep::ActAutonomously {
                 entity_name_or_id: "地脉游火".to_string(),
             },
+            HarnessStep::TriggerDomainResonance {
+                domain_name: "悬天绝壁 / Celestial Cliff Precipice".to_string(),
+            },
             HarnessStep::ShiftCosmicLaw,
             HarnessStep::TickEpoch { count: 1 },
             HarnessStep::AssertEntityCount { expected: 2 },
@@ -77,6 +80,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             },
             HarnessStep::AssertChronicleContains {
                 event_type: "AUTONOMOUS_AGENCY".to_string(),
+            },
+            HarnessStep::AssertChronicleContains {
+                event_type: "DOMAIN_RESONANCE".to_string(),
             },
             HarnessStep::AssertChronicleContains {
                 event_type: "COSMIC_LAW_SHIFT".to_string(),
@@ -90,9 +96,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 使用 Harness 驱动剧本执行
     let report = harness.run_scenario(benchmark_scenario).await?;
 
+    // 提炼并打印宇宙纪元神话篇章 (Layer 3 Mythos)
+    if let Ok(mythos) = harness.world.distill_mythos().await {
+        println!("\n╔══════════════════════════════════════════════════════════════════╗");
+        println!("║ 📜 《原初》纪元神话篇章 / Epoch Mythos Chapter                   ║");
+        println!("║ 篇目 / Title: {:<50} ║", mythos.title);
+        println!("║ 宇宙基调 / Tone: {:<47} ║", mythos.world_tone);
+        println!("╚══════════════════════════════════════════════════════════════════╝");
+        println!("📖 史诗吟诵 / Poetic Epic:\n{}\n", mythos.poetic_epic);
+    }
+
     // 导出并打印链路追踪与快照
     let snapshot_json = harness.world.export_snapshot_json()?;
-    println!("\n💾 [宇宙状态快照 / World Snapshot]: {} bytes", snapshot_json.len());
+    println!("💾 [宇宙状态快照 / World Snapshot]: {} bytes", snapshot_json.len());
 
     println!("\n🔍 [因果链路追踪明细 / Causality Trace Spans]:");
     for span in &harness.world.tracer.spans {

@@ -184,3 +184,42 @@ async fn test_entity_lifecycle_and_dissolution() {
     assert!((target.cohesion - 0.05).abs() < 1e-5);
     assert!(world.chronicle.iter().any(|e| e.event_type == "ENTITY_DISSOLUTION"));
 }
+
+#[tokio::test]
+async fn test_domain_resonance_and_mythos_distillation() {
+    let mock_resp = serde_json::json!({
+        "domain_narrative": "绝壁之巅星辉翻涌，古石与雷鸣交汇激荡",
+        "new_resonance_field": "万仞雷光场 / Thousand-Blade Thunderfield",
+        "emergent_phenomenon": "太初雷潮 / Primordial Thunderstorm",
+        "affected_entity_updates": [
+            {
+                "entity_id": "ent_001",
+                "new_state": "通体激荡雷光纹路",
+                "new_trait": "雷光淬体"
+            }
+        ],
+        "title": "绝壁雷潮神话篇 / Chapter of Cliff Thunderstorm",
+        "poetic_epic": "雷火撕裂太初虚空，古石沐浴万仞神光，星辰在此刻重铸。 / Thunder tears the primordial void as stone bathes in divine radiance.",
+        "world_tone": "宏大激昂 / Grand Epic"
+    });
+
+    let mock_llm = Arc::new(MockLlmClient { return_val: mock_resp });
+    let mut world = PrimordiaWorld::with_llm("共鸣与史诗世界", mock_llm);
+
+    let id = world.add_entity_with_domain("雷鸣岩", "青石", vec!["坚固"], "静立", "悬天绝壁");
+    
+    // 验证场域共鸣激荡
+    let res_res = world.trigger_domain_resonance("悬天绝壁").await;
+    assert!(res_res.is_ok());
+
+    let ent = world.entities.get(&id).unwrap();
+    assert_eq!(ent.spatial.resonance_field, "万仞雷光场 / Thousand-Blade Thunderfield");
+    assert!(ent.traits.contains(&"雷光淬体".to_string()));
+
+    // 验证史诗提炼
+    let mythos = world.distill_mythos().await;
+    assert!(mythos.is_ok());
+    let chapter = mythos.unwrap();
+    assert_eq!(chapter.title, "绝壁雷潮神话篇 / Chapter of Cliff Thunderstorm");
+    assert!(chapter.poetic_epic.contains("雷火撕裂太初虚空"));
+}

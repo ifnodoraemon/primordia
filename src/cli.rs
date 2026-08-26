@@ -140,6 +140,29 @@ impl PrimordiaRepl {
                     println!("🌌 正在推演宏观天道气象迁跃……");
                     let _ = world.evolve_cosmic_law().await;
                 }
+                "resonate" => {
+                    if parts.len() < 2 {
+                        println!("⚠️ 用法: resonate <拓扑场域名称>");
+                        continue;
+                    }
+                    let domain_name = parts[1..].join(" ");
+                    println!("🌊 正在激发场域【{}】的集体共鸣与灵潮相变……", domain_name);
+                    let _ = world.trigger_domain_resonance(&domain_name).await;
+                }
+                "epic" | "mythos" => {
+                    println!("📜 正在提炼宇宙纪元神话篇章……");
+                    match world.distill_mythos().await {
+                        Ok(chapter) => {
+                            println!("\n╔══════════════════════════════════════════════════════════════════╗");
+                            println!("║ 📜 《原初》纪元神话篇章 / Epoch Mythos Chapter                   ║");
+                            println!("║ 篇目 / Title: {:<50} ║", chapter.title);
+                            println!("║ 宇宙基调 / Tone: {:<47} ║", chapter.world_tone);
+                            println!("╚══════════════════════════════════════════════════════════════════╝");
+                            println!("📖 史诗吟诵 / Poetic Epic:\n{}\n", chapter.poetic_epic);
+                        }
+                        Err(e) => println!("❌ 提炼神话篇章失败: {}", e),
+                    }
+                }
                 "trace" => {
                     println!("🔭 因果链路追踪摘要 / Trace Summary: {}", world.tracer.summary());
                     println!("📜 最近 5 个 CausalSpan 明细:");

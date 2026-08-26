@@ -439,6 +439,99 @@ impl CausalOperator for CosmicLawOperator {
 }
 
 // =========================================================================
+// 6. 场域集体共鸣与灵潮相变算子 (Domain Resonance & Collective Emergence)
+// =========================================================================
+
+pub struct DomainResonanceOperator;
+
+impl CausalOperator for DomainResonanceOperator {
+    type Context = String; // domain_name
+    type Output = Value;
+
+    fn operator_type(&self) -> &'static str {
+        "DOMAIN_RESONANCE"
+    }
+
+    fn target_entities(&self, ctx: &Self::Context) -> Vec<String> {
+        vec![format!("@DOMAIN:{}", ctx)]
+    }
+
+    fn build_prompts(&self, world: &PrimordiaWorld, ctx: &Self::Context) -> Result<(String, String), String> {
+        let domain_name = ctx;
+        let mut domain_entities = Vec::new();
+        for (id, ent) in &world.entities {
+            if &ent.spatial.domain == domain_name {
+                domain_entities.push(format!("[{}] {}", id, ent.sensory_manifestation()));
+            }
+        }
+
+        let system_prompt = "你是《原初》场域集体共鸣与宏观环境激荡裁决核心。\
+            You are the Collective Domain Resonance Arbiter of Primordia.\
+            当一个拓扑场域内的多个灵元实体相互共振激荡时，可能引发灵潮涌动、雷火交织、逆熵风暴、乃至场域升华跃迁。\
+            请推演该场域内实体经历的集体相变与新场域气象。\
+            请务必返回 JSON: {\
+                domain_narrative: str, \
+                new_resonance_field: str, \
+                emergent_phenomenon: str, \
+                affected_entity_updates: list of {entity_id: str, new_state: str, new_trait: str or null}\
+            }".to_string();
+
+        let user_prompt = format!(
+            "目标场域 / Target Domain: 【{}】\n场域内当前灵元实体:\n{}\n宏观天道背景: {}",
+            domain_name,
+            if domain_entities.is_empty() { "无实体 / Empty".to_string() } else { domain_entities.join("\n") },
+            world.cosmic_atmosphere
+        );
+
+        Ok((system_prompt, user_prompt))
+    }
+
+    fn apply_mutation(
+        &self,
+        world: &mut PrimordiaWorld,
+        ctx: &Self::Context,
+        result: &Value,
+    ) -> Result<(Self::Output, String), String> {
+        let domain_name = ctx;
+        let narrative = result["domain_narrative"].as_str().unwrap_or("场域内灵气交织共鸣 / Ethereal currents intertwine");
+        let new_resonance = result["new_resonance_field"].as_str().unwrap_or("灵潮澎湃 / Surging Tide");
+        let phenomenon = result["emergent_phenomenon"].as_str().unwrap_or("天地异象 / Numina Manifestation");
+
+        // 更新场域内实体的共鸣场与状态
+        for (_, ent) in world.entities.iter_mut() {
+            if &ent.spatial.domain == domain_name {
+                ent.spatial.resonance_field = new_resonance.to_string();
+            }
+        }
+
+        if let Some(updates) = result["affected_entity_updates"].as_array() {
+            for item in updates {
+                if let Some(eid) = item["entity_id"].as_str() {
+                    if let Some(ent) = world.entities.get_mut(eid) {
+                        if let Some(state) = item["new_state"].as_str() {
+                            ent.current_state = state.to_string();
+                        }
+                        if let Some(trait_s) = item["new_trait"].as_str() {
+                            if !ent.traits.contains(&trait_s.to_string()) {
+                                ent.traits.push(trait_s.to_string());
+                            }
+                        }
+                        ent.record_memory(format!("历经场域集体共鸣【{}】: {}", phenomenon, narrative));
+                    }
+                }
+            }
+        }
+
+        let event_detail = format!(
+            "场域【{}】爆发集体共鸣激荡：{} ──► 异象: {} (共鸣场更新为: {}) / Domain [{}] erupted in collective resonance: {} ──► {}: {}",
+            domain_name, narrative, phenomenon, new_resonance, domain_name, narrative, phenomenon, new_resonance
+        );
+
+        Ok((result.clone(), event_detail))
+    }
+}
+
+// =========================================================================
 // 6. 因果执行器流水线 (Causal Pipeline Executor)
 // =========================================================================
 

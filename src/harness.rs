@@ -40,6 +40,8 @@ pub enum HarnessStep {
     },
     /// 宏观天道气象相变
     ShiftCosmicLaw,
+    /// 触发场域集体共鸣与灵潮相变
+    TriggerDomainResonance { domain_name: String },
     /// 推进自演化纪元
     TickEpoch { count: u64 },
     /// 断言：世界实体总数检查
@@ -79,6 +81,10 @@ impl HarnessStep {
             }
             HarnessStep::ShiftCosmicLaw => {
                 world.evolve_cosmic_law().await?;
+                Ok(StepOutcome::ActionSuccess)
+            }
+            HarnessStep::TriggerDomainResonance { domain_name } => {
+                world.trigger_domain_resonance(domain_name).await?;
                 Ok(StepOutcome::ActionSuccess)
             }
             HarnessStep::TickEpoch { count } => {

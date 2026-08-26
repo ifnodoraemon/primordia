@@ -1,8 +1,10 @@
 use crate::entity::Entity;
 use crate::llm::{create_llm_client_from_env, LlmClient};
+use crate::mythos::{MythosChapter, MythosEngine};
 use crate::operator::{
-    AutonomousAgencyOperator, CausalExecutor, CosmicLawOperator, MindInhabitationContext,
-    MindInhabitationOperator, MorphogenesisContext, MorphogenesisOperator, SelfEvolutionOperator,
+    AutonomousAgencyOperator, CausalExecutor, CosmicLawOperator, DomainResonanceOperator,
+    MindInhabitationContext, MindInhabitationOperator, MorphogenesisContext,
+    MorphogenesisOperator, SelfEvolutionOperator,
 };
 use crate::trace::CausalityTracer;
 use serde::{Deserialize, Serialize};
@@ -184,6 +186,16 @@ impl PrimordiaWorld {
     /// 宏观天道气象与纪元法则演化 (Cosmic Macro-Law Evolution - Strategy Delegation)
     pub async fn evolve_cosmic_law(&mut self) -> Result<String, String> {
         CausalExecutor::execute(self, &CosmicLawOperator, &()).await
+    }
+
+    /// 激发场域集体共鸣相变 (Trigger Domain Collective Resonance - Strategy Delegation)
+    pub async fn trigger_domain_resonance(&mut self, domain_name: &str) -> Result<Value, String> {
+        CausalExecutor::execute(self, &DomainResonanceOperator, &domain_name.to_string()).await
+    }
+
+    /// 提炼当前编年史为神话史诗 (Distill Chronicle into Mythos Chapter)
+    pub async fn distill_mythos(&self) -> Result<MythosChapter, String> {
+        MythosEngine::distill_epoch_mythos(self.llm.as_ref(), &self.chronicle, self.tick_count).await
     }
 
     /// 推进一个世界纪元周期 (Advance World Epoch Tick)
