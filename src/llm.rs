@@ -70,12 +70,29 @@ impl LlmClient for OpenAiLlmClient {
             }
         }
 
-        // 离线/未配置 Key 时的模拟回退推演
+        // 离线/未配置 Key 时的模拟第一性原理回退推演
+        if system_prompt.contains("宏观天道") || system_prompt.contains("Cosmic Law") {
+            return Ok(serde_json::json!({
+                "new_atmosphere": "太初辉光纪元：星辰灵尘与地热熵流谐振，虚空中涌现微弱的引力拓扑网 / Era of Primordial Radiance: Stardust and thermal entropy resonate, weaving gravitational topology in the void",
+                "cosmic_ripple": "天道法则发生微观跃迁，万物感官视界向外延伸三舍 / World laws shift subtly; entity perceptual horizons expand outward"
+            }));
+        }
+
+        if user_prompt.contains("共生") || user_prompt.contains("Symbiosis") {
+            return Ok(serde_json::json!({
+                "outcome_type": "ASSEMBLAGE_SYMBIOSIS",
+                "narrative": "两股原初灵性未发生消解，而是编织成共生装配体，彼此交换感知与光晕 / The two entities entwine into a rhizomatic assemblage, exchanging perceptions and radiance without losing individuality",
+                "update_a": "体内沉淀出与对方共振的脉络 / Forms internal resonance channels attuned to the partner",
+                "update_b": "外层激荡出护持母体的温润光晕 / Radiates a warm halo protecting the host companion",
+                "born_entity": null
+            }));
+        }
+
         Ok(serde_json::json!({
             "updated_state": "表面渗透出微弱的虹彩辉光，内部物质开始自发分层旋转，呼吸着虚空中的微光",
-            "new_traits": ["虹彩辉光", "内部自旋"],
-            "new_memory": "感受到了时光在周围留下的涟漪",
-            "narrative": "两股原初能量在虚空中交汇，激荡出微弱的共鸣波纹",
+            "new_traits": ["虹彩辉光 / Iridescent Sheen", "内部自旋 / Internal Spin"],
+            "new_memory": "感受到了时光与宏观天道在周围留下的涟漪",
+            "narrative": "两股原初能量在虚空中交汇，激荡出微弱的共鸣波纹 / Two primordial energies converge, rippling across the void",
             "outcome_type": "MUTUAL_CHANGE",
             "action_result": "意识与物质发生谐振，形态产生轻微位移与流变",
             "subject_new_state": "内部核心泛起明亮光晕，以共鸣姿态朝向目标",

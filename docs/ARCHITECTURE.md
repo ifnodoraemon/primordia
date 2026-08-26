@@ -88,3 +88,13 @@ This document specifies the technical layering, data flow, and core scheduling m
   2. **Intent Injection**: Player provides natural language free-will instructions.
   3. **LLM Grounding**: Reasons through physical/spiritual feasibility, subject feedback, and environmental ripples.
   4. **Ripple Feedback**: Updates the host entity and inscribes the memory of divine possession.
+
+### 流程四：宏观天道相变与共生装配（Cosmic Law Shift & Assemblage Symbiosis）
+* **[中]**
+  1. **天道演化**：按大纪元周期推演宇宙宏观气象与物理常数（`cosmic_atmosphere`），反向作用于万物自演化 Prompt。
+  2. **装配共生**：两个实体在碰撞交融中缔结块茎式共生装配体（`assemblages`），保留各自独立性并共享感知场。
+  3. **持久化快照**：完整世界实体图谱与编年史支持 JSON 无损快照导出与热加载。
+* **[EN]**
+  1. **Cosmic Law Evolution**: Reasons macro atmospheric & physical phase transitions per epoch, conditioning local entity evolutions.
+  2. **Assemblage Symbiosis**: Entities establish rhizomatic symbiotic assemblages, preserving ontological autonomy while coupling perceptual fields.
+  3. **Persistent Snapshots**: Complete world graph and chronicle state support lossless JSON snapshot export and hot reload.
