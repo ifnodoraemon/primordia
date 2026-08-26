@@ -209,12 +209,36 @@ export const CosmicRenderer: React.FC<CosmicRendererProps> = ({
     const scene = sceneRef.current;
     if (!scene) return;
 
-    // Clear old entity meshes
-    entityMeshesRef.current.forEach((mesh) => scene.remove(mesh));
+    // Clear old entity meshes and dispose GPU memory
+    entityMeshesRef.current.forEach((group) => {
+      scene.remove(group);
+      group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach((m) => {
+                if (m.map) m.map.dispose();
+                m.dispose();
+              });
+            } else {
+              if (obj.material.map) obj.material.map.dispose();
+              obj.material.dispose();
+            }
+          }
+        }
+      });
+    });
     entityMeshesRef.current.clear();
 
     if (assemblageLinesRef.current) {
       scene.remove(assemblageLinesRef.current);
+      assemblageLinesRef.current.geometry.dispose();
+      if (Array.isArray(assemblageLinesRef.current.material)) {
+        assemblageLinesRef.current.material.forEach((m) => m.dispose());
+      } else {
+        assemblageLinesRef.current.material.dispose();
+      }
       assemblageLinesRef.current = null;
     }
 
