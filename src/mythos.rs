@@ -1,7 +1,6 @@
 use crate::llm::LlmClient;
 use crate::world::ChronicleEvent;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 /// 纪元神话篇章 (Epoch Mythos Chapter)
 #[derive(Debug, Clone, Serialize, Deserialize)]

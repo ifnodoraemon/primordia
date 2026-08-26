@@ -1,8 +1,10 @@
 use primordia::{
-    create_llm_client_from_env, GenesisSpec, HarnessStep, PrimordiaRepl, Scenario,
+    create_llm_client_from_env, start_web_server, GenesisSpec, HarnessStep, PrimordiaRepl, Scenario,
     SimulationHarness,
 };
 use std::env;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -14,9 +16,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let llm = create_llm_client_from_env();
     let mut harness = SimulationHarness::new("原初宇宙 0 号 / Universe-Zero", llm);
 
+    let is_web = env::args().any(|arg| arg == "--web" || arg == "--server" || arg == "-w");
     let is_interactive = env::args().any(|arg| arg == "--interactive" || arg == "-i");
 
-    if is_interactive {
+    if is_web || is_interactive {
         // 初始化预设原初实体以供交互
         harness.world.add_entity_with_domain(
             "青峭古石 / Resonant Thunder-Stone",
@@ -32,6 +35,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "在虚空中飘忽不定地舞动，吞吐着火星 / Flickering in the void, releasing glowing embers",
             "地底裂隙 / Abyssal Rift Domain",
         );
+
+        if is_web {
+            let port = env::var("PORT").ok().and_then(|p| p.parse().ok()).unwrap_or(8000);
+            let shared_world = Arc::new(Mutex::new(harness.world));
+            start_web_server(shared_world, port).await?;
+            return Ok(());
+        }
 
         PrimordiaRepl::run(&mut harness.world).await?;
         return Ok(());

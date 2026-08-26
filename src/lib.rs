@@ -5,6 +5,7 @@ pub mod llm;
 pub mod mythos;
 pub mod operator;
 pub mod perception;
+pub mod server;
 pub mod trace;
 pub mod world;
 
@@ -22,5 +23,6 @@ pub use operator::{
     MorphogenesisContext, MorphogenesisOperator, SelfEvolutionOperator,
 };
 pub use perception::{PerceptionEngine, SensoryHorizon};
+pub use server::{start_web_server, SharedWorld};
 pub use trace::{CausalSpan, CausalityTracer};
 pub use world::{ChronicleEvent, PrimordiaWorld, WorldSnapshot};

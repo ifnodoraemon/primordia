@@ -77,7 +77,17 @@ Traditional game engines rely on handcrafted rule trees, fixed skill graphs, scr
 cargo run
 ```
 
-### 启动交互式原初觉知终端 / Launch Interactive REPL:
+### 启动 Web 视觉控制台与客户端 / Launch Web Client:
+```bash
+cargo run -- --web
+# 或 / or: cargo run -- -w
+```
+启动后在浏览器打开 `http://localhost:8000`，即可进入暗黑赛博/原初以太视觉交互中枢：
+- **🌌 灵元星象图谱**：可视化呈现各拓扑场域中实体的生命周期阶段（成住坏空）与凝聚度。
+- **🧠 觉知寄宿控制台**：在网页端直接点击实体、注入自然语言意图、触发自主心智与碰撞相变。
+- **📜 宇宙史诗碑刻**：实时滚动的因果编年史流与一键提炼的纪元神话篇章。
+
+### 启动命令行交互终端 / Launch Interactive CLI REPL:
 ```bash
 cargo run -- --interactive
 # 或 / or: cargo run -- -i
