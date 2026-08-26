@@ -167,9 +167,8 @@ async fn test_entity_lifecycle_and_dissolution() {
         "updated_state": "形体在漫长岁月风化中崩解为尘埃",
         "new_traits": ["风化粉尘"],
         "new_memory": "形体消散，灵蕴回归大地",
-        "lifecycle_phase": "Dissolution",
-        "cohesion_change": -0.95,
-        "domain_nourishment": "散落为十里沃土与灵气微尘"
+        "dynamic_properties": { "entropy": 0.99 },
+        "is_dissolved": true
     });
 
     let mock_llm = Arc::new(MockLlmClient { return_val: mock_resp });
@@ -179,10 +178,9 @@ async fn test_entity_lifecycle_and_dissolution() {
     let res = world.evolve_entity(&id).await;
     assert!(res.is_ok());
 
-    let target = world.entities.get(&id).unwrap();
-    assert_eq!(target.lifecycle, primordia::LifecyclePhase::Dissolution);
-    assert!((target.cohesion - 0.05).abs() < 1e-5);
-    assert!(world.chronicle.iter().any(|e| e.event_type == "ENTITY_DISSOLUTION"));
+    // 验证实体消解归墟，从世界集合中移除并记录日志
+    assert!(!world.entities.contains_key(&id));
+    assert!(world.chronicle.iter().any(|e| e.detail.contains("形体消解归墟")));
 }
 
 #[tokio::test]

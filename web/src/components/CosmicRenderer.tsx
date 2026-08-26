@@ -270,19 +270,23 @@ export const CosmicRenderer: React.FC<CosmicRendererProps> = ({
       const group = new THREE.Group();
       group.position.copy(pos);
 
-      // Color mapping by Lifecycle Phase (成住坏空)
-      let color = 0x4ade80; // Flourishing - Emerald Green
-      const phase = (ent.lifecycle || '').toLowerCase();
-      if (phase.includes('genesis') || phase.includes('成')) color = 0x38bdf8; // Cyan
-      else if (phase.includes('decay') || phase.includes('坏')) color = 0xfbbf24; // Amber
-      else if (phase.includes('dissol') || phase.includes('空')) color = 0xf43f5e; // Rose Red
+      // Color mapping by Semantic State & Traits
+      let color = 0x4ade80; // Default: Emerald Green (Vitality)
+      const stateStr = (ent.current_state + ' ' + ent.traits.join(' ')).toLowerCase();
+      if (stateStr.includes('光') || stateStr.includes('星') || stateStr.includes('晶') || stateStr.includes('初生')) {
+        color = 0x38bdf8; // Cyan (Astral/Crystalline)
+      } else if (stateStr.includes('火') || stateStr.includes('雷') || stateStr.includes('热') || stateStr.includes('裂')) {
+        color = 0xfb923c; // Amber/Orange (Dynamic Energy)
+      } else if (stateStr.includes('尘') || stateStr.includes('风化') || stateStr.includes('枯') || stateStr.includes('归墟')) {
+        color = 0xf43f5e; // Rose/Crimson (Entropic Flow)
+      }
 
       if (ent.id === selectedEntityId) {
         color = 0xc084fc; // Selected - Vibrant Violet
       }
 
       // 1. Core Sphere
-      const sphereGeo = new THREE.SphereGeometry(3.2 * (ent.cohesion || 1.0), 24, 24);
+      const sphereGeo = new THREE.SphereGeometry(3.2 * (ent.spatial?.scale || 1.0), 24, 24);
       const sphereMat = new THREE.MeshStandardMaterial({
         color,
         emissive: color,

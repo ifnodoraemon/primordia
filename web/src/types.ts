@@ -3,12 +3,9 @@ export interface Spatial {
   y: number;
   z: number;
   scale: number;
-  mobility: string;
   domain: string;
   resonance_field: string;
 }
-
-export type LifecyclePhase = 'Genesis' | 'Flourishing' | 'Decay' | 'Dissolution' | string;
 
 export interface Entity {
   id: string;
@@ -18,8 +15,7 @@ export interface Entity {
   spatial: Spatial;
   traits: string[];
   current_state: string;
-  lifecycle: LifecyclePhase;
-  cohesion: number;
+  properties?: Record<string, any>;
   memory_stream: string[];
   assemblages: string[];
   active_inhabitants: string[];

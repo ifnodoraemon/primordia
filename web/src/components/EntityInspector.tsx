@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Entity } from '../types';
 import { triggerCommunion } from '../api';
-import { Shield, MapPin, Eye, Sparkles, Network, MessageSquare, Send } from 'lucide-react';
+import { Shield, MapPin, Eye, Sparkles, Network, MessageSquare, Send, Cpu } from 'lucide-react';
 
 interface EntityInspectorProps {
   entity: Entity | null;
@@ -23,7 +23,7 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({
       <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col items-center justify-center text-center text-slate-500 h-64 text-xs">
         <Sparkles className="w-8 h-8 text-slate-700 mb-2 animate-pulse" />
         <p>在 3D 宇宙图谱或卡片列表中点击灵元实体</p>
-        <p className="mt-1 text-slate-600">以深入剖析其面向对象本体论（OOO）退隐内核、神念对话与历史记忆</p>
+        <p className="mt-1 text-slate-600">以深入剖析其面向对象本体论（OOO）退隐内核、神念对话与自由演化态</p>
       </div>
     );
   }
@@ -45,16 +45,6 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({
     }
   };
 
-  let phaseColor = 'bg-emerald-950/60 text-emerald-300 border-emerald-800';
-  const phase = (entity.lifecycle || '').toLowerCase();
-  if (phase.includes('genesis') || phase.includes('成')) {
-    phaseColor = 'bg-sky-950/60 text-sky-300 border-sky-800';
-  } else if (phase.includes('decay') || phase.includes('坏')) {
-    phaseColor = 'bg-amber-950/60 text-amber-300 border-amber-800';
-  } else if (phase.includes('dissol') || phase.includes('空')) {
-    phaseColor = 'bg-rose-950/60 text-rose-300 border-rose-800';
-  }
-
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-4 flex flex-col gap-3 text-xs overflow-y-auto max-h-[460px]">
       <div className="flex justify-between items-start pb-2 border-b border-slate-800">
@@ -72,8 +62,8 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({
           </h2>
           <p className="text-[11px] text-slate-400 mt-0.5 italic">{entity.essence}</p>
         </div>
-        <div className={`border px-2 py-0.5 rounded-full font-mono text-[10px] ${phaseColor}`}>
-          {entity.lifecycle} (凝聚度: {(entity.cohesion || 1.0).toFixed(2)})
+        <div className="border border-emerald-800 bg-emerald-950/60 text-emerald-300 px-2 py-0.5 rounded-full font-mono text-[10px]">
+          纪元 {entity.born_at_tick} 诞生
         </div>
       </div>
 
@@ -98,16 +88,33 @@ export const EntityInspector: React.FC<EntityInspectorProps> = ({
         </p>
       </div>
 
-      {/* 当前感官状态与特征 */}
+      {/* 当前开放存在状态 */}
       <div className="flex flex-col gap-1.5">
         <div className="text-slate-400 flex items-center gap-1">
           <Eye className="w-3 h-3 text-sky-400" />
-          <span>感官表象状态:</span>
+          <span>当前开放自生状态 / Emergent State:</span>
         </div>
         <p className="text-slate-200 bg-slate-950/60 p-2 rounded border border-slate-800 leading-relaxed">
           {entity.current_state}
         </p>
       </div>
+
+      {/* 开放动态语义属性池 */}
+      {entity.properties && Object.keys(entity.properties).length > 0 && (
+        <div>
+          <span className="text-amber-400 text-[11px] flex items-center gap-1">
+            <Cpu className="w-3 h-3" />
+            <span>自演化动态属性 / Dynamic Properties:</span>
+          </span>
+          <div className="flex flex-wrap gap-1.5 mt-1 font-mono text-[10px]">
+            {Object.entries(entity.properties).map(([k, v]) => (
+              <span key={k} className="bg-amber-950/40 border border-amber-800/60 text-amber-300 px-2 py-0.5 rounded">
+                {k}: {typeof v === 'object' ? JSON.stringify(v) : String(v)}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 🗣️ 泛心论神念倾听问答 (Panpsychic Communion) */}
       <div className="bg-slate-950/90 border border-cyan-950 p-2.5 rounded-lg flex flex-col gap-2">
